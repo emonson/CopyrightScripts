@@ -10,12 +10,13 @@ import string
 from datetime import datetime
 from html2text import html2text
 
-data_dir = '/Volumes/SciVis_LargeData/ArtMarkets/Subset2'
-# data_dir = '/Users/emonson/Data/ArtMarkets/Subset2'
+# data_dir = '/Volumes/SciVis_LargeData/ArtMarkets/Subset2'
+data_dir = '/Users/emonson/Data/ArtMarkets/Subset2'
 db_name = 'copyright_test'
 
 nondate_tag_list = ['court', 'case_cite', 'parties', 'docket']
 
+bad_copyright = re.compile('copyright material omitted|copyrighted material omitted', re.IGNORECASE)
 br = re.compile(r'<[bB][rR] *?/>')
 bi = re.compile(r'<[bB]>')
 bo = re.compile(r'</[bB]>')
@@ -81,14 +82,19 @@ abbr_list.append(('Nov', 'November'))
 abbr_list.append(('Dec.', 'December'))
 abbr_list.append(('Dec', 'December'))
 
-# couch = couchdb.Server('http://emonson:couchlog@127.0.0.1:5984')
-couch = couchdb.Server('http://127.0.0.1:5984')
+couch = couchdb.Server('http://emonson:couchlog@127.0.0.1:5984')
+# couch = couchdb.Server('http://127.0.0.1:5984')
 
 # For now, always recreate database...
 if db_name in couch:
 	couch.delete(db_name)
 
 db = couch.create(db_name)
+
+test1 = couch['test2']
+test1_design = test1['_design/test1']
+del test1_design['_rev']
+db.save(test1_design)
 
 count = 0
 
@@ -99,7 +105,7 @@ def count_files(arg, dirname, files):
 		fullpath = os.path.join(dirname, file)
 		if os.path.isfile(fullpath) and (file != 'index.html'):
 			
-			if (count % 100) == 0:
+			if (count % 10) == 0:
 				print count
 			count += 1
 			print_it = False
@@ -114,6 +120,7 @@ def count_files(arg, dirname, files):
 			s = bo.sub('', s)
 			s = ii.sub('', s)
 			s = io.sub('', s)
+			s = bad_copyright.sub('', s)
 			
 			soup = BeautifulSoup(s)
 			
@@ -128,8 +135,9 @@ def count_files(arg, dirname, files):
 				ll.extract()
 			
 			# Take off footer
-			ff = soup.find('div','footer')
-			ff.extract()
+			ff = soup.find('div',{'id':'footer'})
+			if ff is not None:
+				ff.extract()
 			
 			check_places = {}
 			check_places['DATE'] = br.sub(' ', str(" ".join([str(ss) for ss in soup.findAll("p", "date")])))
@@ -207,29 +215,36 @@ def count_files(arg, dirname, files):
 						for date in dates:
 							fil_dates.append([k, date])
 			
-			if (len(decided_dates) != 1) and (len(plain_dates) > (len(denied_dates)+1)) and not (len(plain_dates) == (len(as_dates)+len(fil_dates))): # (len(decided_dates) > 1) or (len(plain_dates) == 0) or (len(denied_dates) > (1+len(plain_dates))) or (len(plain_dates) > 1 and len(decided_dates) == 0 and len(denied_dates) == 0):
-				print "(", file, ")"
-				print check_places['DATE']
-				print "Plain:", plain_dates
-				print "Decid:", decided_dates
-				print "Denyd:", denied_dates
-				print "ArSub:", as_dates
-				print "Filed:", fil_dates
-				print
+# 			if (len(decided_dates) != 1) and (len(plain_dates) > (len(denied_dates)+1)) and not (len(plain_dates) == (len(as_dates)+len(fil_dates))): # (len(decided_dates) > 1) or (len(plain_dates) == 0) or (len(denied_dates) > (1+len(plain_dates))) or (len(plain_dates) > 1 and len(decided_dates) == 0 and len(denied_dates) == 0):
+# 				print "(", file, ")"
+# 				print check_places['DATE']
+# 				print "Plain:", plain_dates
+# 				print "Decid:", decided_dates
+# 				print "Denyd:", denied_dates
+# 				print "ArSub:", as_dates
+# 				print "Filed:", fil_dates
+# 				print
 
 			date_found = False
 			date = None
 			
 			# Date logic... Short circuit process after each (don't let run through)
 			
-			# If one decided date -> that's the date
-			if len(decided_dates) == 1:
-				date = decided_dates[0]
+			# If only one plain date -> that's the date
+			if len(plain_dates) == 1:
+				date = plain_dates[0]
 				date_found = True
+				
+			# If one decided date -> that's the date
+			if not date_found:
+				if len(decided_dates) == 1:
+					date = decided_dates[0]
+					date_found = True
 			
 			# If more than one decided date -> problem (leave date == None)
-			if len(decided_dates) > 1:
-				date_found = True
+			if not date_found:
+				if len(decided_dates) > 1:
+					date_found = True
 			
 			# If len(denied_dates) > 0 and == len(plain_dates)-1, find non-denied plain date -> that's the date
 			if not date_found:
@@ -240,11 +255,14 @@ def count_files(arg, dirname, files):
 					date = list(date_set.pop())
 					date_found = True
 				
-			# If len(fil_dates) == 1 and (len(plain_dates) == (len(as_dates)+len(fil_dates))) -> choose filed date
-			# TODO:
+			# if (len(fil_dates) == 1) and (len(plain_dates) == (len(as_dates)+len(fil_dates))) -> choose filed date
+			if not date_found:
+				if (len(fil_dates) == 1) and (len(plain_dates) == (len(as_dates)+len(fil_dates))):
+					date = fil_dates[0]
+					date_found = True
 			
 			# Replace abbreviations
-			if date_found and (date not None) date[0].startswith('Abbr'):
+			if date_found and (not date is None) and date[0].startswith('Abbr'):
 				for mo in abbr_list:
 					if date[1].find(mo[0]) >= 0:
 						date[1] = date[1].replace(mo[0],mo[1])
@@ -254,10 +272,14 @@ def count_files(arg, dirname, files):
 			final_date_string = None
 			
 			# Replace date with YYYY-MM-DD format
-			if date_found and (date not None):
+			if date_found and (date is not None):
 				if date[0].startswith('Full'):
-					tt = datetime.strptime(date[1], "%B %d, %Y")
-					final_date_string = tt.strftime('%Y-%m-%d')
+					if date[0].endswith('_Bk'):
+						tt = datetime.strptime(date[1], "%d %B %Y")
+						final_date_string = tt.strftime('%Y-%m-%d')
+					else:
+						tt = datetime.strptime(date[1], "%B %d, %Y")
+						final_date_string = tt.strftime('%Y-%m-%d')
 				elif date[0].startswith('Numb'):
 					# Need to force the right range on years: 00 - 68 show up as 2000-2068...
 					# We know our year range is 1949 to 2007
@@ -272,8 +294,10 @@ def count_files(arg, dirname, files):
 				else:
 					final_date_string = 'YYYY-YY-YY'
 			
-			if not date_found or (date is None):
+			if (not date_found) or (date is None):
 				final_date_string = 'XXXX-XX-XX'
+				print "(", file, ")"
+				print check_places['DATE']
 
 			id = uuid4().hex
 			doc = {'_id': id, 'type': 'decision', 'relevant': True}
