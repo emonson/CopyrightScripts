@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Count how many cases are probably copyright related / total number of cases
+# Do date parsing and build initial copyright_test CouchDB database
 
 import os, re
 from BeautifulSoup import BeautifulSoup, NavigableString, Tag
@@ -10,8 +10,8 @@ import string
 from datetime import datetime
 from html2text import html2text
 
-# data_dir = '/Volumes/SciVis_LargeData/ArtMarkets/Subset2'
-data_dir = '/Users/emonson/Data/ArtMarkets/Subset2'
+data_dir = '/Volumes/SciVis_LargeData/ArtMarkets/Subset2'
+# data_dir = '/Users/emonson/Data/ArtMarkets/Subset2'
 db_name = 'copyright_test'
 
 nondate_tag_list = ['court', 'case_cite', 'parties', 'docket']
@@ -82,19 +82,23 @@ abbr_list.append(('Nov', 'November'))
 abbr_list.append(('Dec.', 'December'))
 abbr_list.append(('Dec', 'December'))
 
-couch = couchdb.Server('http://emonson:couchlog@127.0.0.1:5984')
-# couch = couchdb.Server('http://127.0.0.1:5984')
+# couch = couchdb.Server('http://emonson:couchlog@127.0.0.1:5984')
+couch = couchdb.Server('http://127.0.0.1:5984')
 
 # For now, always recreate database...
-if db_name in couch:
-	couch.delete(db_name)
+# if db_name in couch:
+# 	couch.delete(db_name)
+# 
+# db = couch.create(db_name)
+# 
+# test1 = couch['test2']
+# test1_design = test1['_design/test1']
+# del test1_design['_rev']
+# db.save(test1_design)
 
-db = couch.create(db_name)
-
-test1 = couch['test2']
-test1_design = test1['_design/test1']
-del test1_design['_rev']
-db.save(test1_design)
+# At this point creating the database with CouchApp, including
+# adding the design docs, so just load the existing database
+db = couch['copyright_test']
 
 count = 0
 
@@ -299,6 +303,7 @@ def count_files(arg, dirname, files):
 				print "(", file, ")"
 				print check_places['DATE']
 
+			# Create the document ID
 			id = uuid4().hex
 			doc = {'_id': id, 'type': 'decision', 'relevant': True}
 			doc['date'] = final_date_string
