@@ -53,7 +53,8 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_7; en-u
 # 
 # print url
 
-url = '/scholar?start=700&q=goods+appropriation&hl=en&num=100&as_sdt=3,34&as_ylo=1950&as_yhi=1980'
+url = 'http://scholar.google.com/scholar?as_q=&num=10&as_epq=conceptual%20separability&as_oq=&as_eq=&as_occt=any&as_sauthors=&as_publication=&as_ylo=&as_yhi=&btnG=Search%20Scholar&hl=en&allcts=&as_sdt=6'
+# url = '/scholar?start=700&q=goods+appropriation&hl=en&num=100&as_sdt=3,34&as_ylo=1950&as_yhi=1980'
 # url = '/scholar?hl=en&num=100&q=%2B%2217+USC%22&btnG=Search&as_sdt=4%2C56%2C57&as_ylo=1994&as_yhi=1994&as_vis=0'
 # url = '/scholar?hl=en&num=100&q=%2217+USC%22&btnG=Search&as_sdt=4%2C56%2C57&as_ylo=2006&as_yhi=2006&as_vis=0'
 
@@ -69,36 +70,36 @@ while url != None:
 	if resp.status == 200:
 		html = resp.read()
 		
-		f = open('g1994.html', 'w')
-		f.write(html)
-		f.close()
-		
 		soup = BeautifulSoup(html)
 		# Looks like <div class=gs_r> </div> encloses each full result record
 		# and <div class=gs_rt> </div> encloses each result title & link
 		
 		# Here taking links with a case href, plus real links (not cited_by) have "onmousedown" field
+		# NOTE: Skipping other types of articles with this filter!
 		cases_list = soup.findAll(attrs={'href':re.compile("^/scholar_case"), 'onmousedown':True})
 		
-		# TODO: Should really also search within returned summary for 17 USC string...
-		
-		
 		for ii, case in enumerate(cases_list):
+			# This should only return one address
 			addr = case_addr.findall(case['href'])
-			print ii, addr[0]
-			# Get first case on page for now
-			if ii == 0:
-				print 'delaying page request'
-				time.sleep(1.0)
-				conn.request("GET", addr[0], None, headers)
-				resp = conn.getresponse()
-				if resp.status == 200:
-					case_html = resp.read()
-					print case_html
+			case_url = addr[0]
+			# cases by default highlight search terms - removing that
+			case_base_url = case_url.split('&')[0]
+			print ii, case_base_url
+			time.sleep(0.2)
+			conn.request("GET", case_base_url, None, headers)
+			resp = conn.getresponse()
+			if resp.status == 200:
+				case_html = resp.read()
+				# print case_html
+				# split off case number
+				case_num = case_base_url.split('=')[1]
+				f = open(case_num + '.html', 'w')
+				f.write(case_html)
+				f.close()
 		
 		# Getting to following pages
 		# Div containing bottom navigation table of links
-		nav_div = soup.find('div', {"class" : "n"})
+		nav_div = soup.find('div', {"id" : "gs_n"})
 		nav_links = nav_div.findAll('a')
 		for link in nav_links:
 			if link.find('span',{'class':'SPRITE_nav_next'}) != None:
