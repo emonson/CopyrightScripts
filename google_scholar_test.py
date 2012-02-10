@@ -53,7 +53,9 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_7; en-u
 # 
 # print url
 
+# "conceptual separability", all courts
 url = 'http://scholar.google.com/scholar?as_q=&num=10&as_epq=conceptual%20separability&as_oq=&as_eq=&as_occt=any&as_sauthors=&as_publication=&as_ylo=&as_yhi=&btnG=Search%20Scholar&hl=en&allcts=&as_sdt=6'
+
 # url = '/scholar?start=700&q=goods+appropriation&hl=en&num=100&as_sdt=3,34&as_ylo=1950&as_yhi=1980'
 # url = '/scholar?hl=en&num=100&q=%2B%2217+USC%22&btnG=Search&as_sdt=4%2C56%2C57&as_ylo=1994&as_yhi=1994&as_vis=0'
 # url = '/scholar?hl=en&num=100&q=%2217+USC%22&btnG=Search&as_sdt=4%2C56%2C57&as_ylo=2006&as_yhi=2006&as_vis=0'
