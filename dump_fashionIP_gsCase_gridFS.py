@@ -23,7 +23,7 @@ except ConnectionFailure:
     sys.exit(1)
 
 # Drop database for now!!
-db_conn.drop_database('fashion_ip')
+# db_conn.drop_database('fashion_ip')
 db = db_conn['fashion_ip']
 fs = gridfs.GridFS(db)
 
@@ -33,7 +33,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1)
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(1909,2013):
+for year in range(1942,2013):
 	
 	print "\n** YEAR:", year
 	
@@ -53,7 +53,7 @@ for year in range(1909,2013):
 		
 	while search_url != None:
 		print '_new page, year', year
-		time.sleep(1.0*(random.random() + 1.0))
+		time.sleep(4.5 + random.random())
 		conn.request("GET", search_url, None, headers)
 		
 		resp = conn.getresponse()
@@ -66,6 +66,7 @@ for year in range(1909,2013):
 			redirect = soup.findAll('a')
 			webbrowser.open(redirect[0]['href'])
 			search_url = None
+			sys.exit(1)
 			
 		if resp.status == 200:
 			html = resp.read()
@@ -87,9 +88,19 @@ for year in range(1909,2013):
 				case_base_url = link['href'].split('&')[0]
 				
 				# Downloading actual file
-				time.sleep(1.0*(random.random() + 1.0))
+				time.sleep(4.5 + random.random())
 				conn.request("GET", case_base_url, None, headers)
 				resp = conn.getresponse()
+
+				if resp.status == 302:
+					html = resp.read()
+					print "REDIRECT!!"
+					soup = BeautifulSoup(html)
+					redirect = soup.findAll('a')
+					webbrowser.open(redirect[0]['href'])
+					search_url = None
+					sys.exit(1)
+		
 				if resp.status == 200:
 					case_html = resp.read()
 					# print case_html
