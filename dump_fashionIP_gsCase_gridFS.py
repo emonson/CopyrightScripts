@@ -17,7 +17,8 @@ import urllib as UL
 
 # Make a connection to Mongo.
 try:
-    db_conn = Connection("localhost", 27017)
+    # db_conn = Connection("localhost", 27017)
+    db_conn = Connection("emo2.trinity.duke.edu", 27017)
 except ConnectionFailure:
     print "couldn't connect: be sure that Mongo is running on localhost:27017"
     sys.exit(1)
@@ -33,7 +34,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1)
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(1942,2013):
+for year in range(1941,2013):
 	
 	print "\n** YEAR:", year
 	
@@ -53,7 +54,7 @@ for year in range(1942,2013):
 		
 	while search_url != None:
 		print '_new page, year', year
-		time.sleep(4.5 + random.random())
+		time.sleep(3.0 + 3.0*random.random())
 		conn.request("GET", search_url, None, headers)
 		
 		resp = conn.getresponse()
@@ -86,9 +87,17 @@ for year in range(1942,2013):
 	
 				# Get rid of the rest of the url query which is about highlighting search terms, etc.
 				case_base_url = link['href'].split('&')[0]
+				case_num = case_base_url.split('=')[1]
+				case_file = case_num + '.html'
+				
+				# Check if really need to download this file or if it's already in GridFS
+				file_list_in_db = list(db.fs.files.find({'filename':case_file},{'_id':True}))
+				if len(file_list_in_db) > 0:
+					print "already have that one..."
+					continue
 				
 				# Downloading actual file
-				time.sleep(4.5 + random.random())
+				time.sleep(3.0 + 3.0*random.random())
 				conn.request("GET", case_base_url, None, headers)
 				resp = conn.getresponse()
 
@@ -105,10 +114,9 @@ for year in range(1942,2013):
 					case_html = resp.read()
 					# print case_html
 					# split off case number
-					case_num = case_base_url.split('=')[1]
 					
 					# Write case html to GridFS
-					uid = fs.put(case_html, filename=case_num + '.html', url=conn.host + case_base_url, media_type='google_scholar_case',year=year)
+					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case',year=year)
 					# print uid
 					# print list(db.fs.files.find())
 					count += 1
