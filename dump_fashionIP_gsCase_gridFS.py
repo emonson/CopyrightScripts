@@ -35,7 +35,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1)
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(1989,2013):
+for year in range(1992,2013):
 	
 	print "\n** YEAR:", year
 	# sys.stdout.flush()
