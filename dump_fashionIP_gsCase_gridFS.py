@@ -21,7 +21,7 @@ try:
     db_conn = Connection("emo2.trinity.duke.edu", 27017)
 except ConnectionFailure:
     print "couldn't connect: be sure that Mongo is running on localhost:27017"
-    sys.stdout.flush()
+    # sys.stdout.flush()
     sys.exit(1)
 
 # Drop database for now!!
@@ -38,7 +38,7 @@ count = 0
 for year in range(1975,2013):
 	
 	print "\n** YEAR:", year
-	sys.stdout.flush()
+	# sys.stdout.flush()
 	
 	# all courts, one year
 	query_dict = {'as_sdt': ['6,34'],
@@ -53,17 +53,17 @@ for year in range(1975,2013):
 	query_str = UL.urlencode(query_dict, True)
 	search_url = '/scholar?' + query_str
 	print search_url
-	sys.stdout.flush()
+	# sys.stdout.flush()
 		
 	while search_url != None:
 		print '_new page, year', year
-		sys.stdout.flush()
+		# sys.stdout.flush()
 		time.sleep(0.2 + 1.0*random.random())
 		conn.request("GET", search_url, None, headers)
 		
 		resp = conn.getresponse()
 		print "Response Status:", resp.status
-		sys.stdout.flush()
+		# sys.stdout.flush()
 		
 		if resp.status == 302:
 			html = resp.read()
@@ -82,7 +82,7 @@ for year in range(1975,2013):
 			tt = soup.find('td',{'align':'right'})
 			if tt is not None:
 				print tt.text, ':: Real count =', count
-				sys.stdout.flush()
+				# sys.stdout.flush()
 	
 			# Here taking links with a case href, plus real links (not cited_by) have "onmousedown" field
 			# NOTE: Skipping other types of articles with this filter!
@@ -100,7 +100,7 @@ for year in range(1975,2013):
 				file_list_in_db = list(db.fs.files.find({'filename':case_file},{'_id':True}))
 				if len(file_list_in_db) > 0:
 					print "already have that one..."
-					sys.stdout.flush()
+					# sys.stdout.flush()
 					continue
 				
 				# Downloading actual file
@@ -111,7 +111,7 @@ for year in range(1975,2013):
 				if resp.status == 302:
 					html = resp.read()
 					print "REDIRECT!!"
-					sys.stdout.flush()
+					# sys.stdout.flush()
 					soup = BeautifulSoup(html)
 					redirect = soup.findAll('a')
 					webbrowser.open(redirect[0]['href'])
@@ -129,7 +129,7 @@ for year in range(1975,2013):
 					# print list(db.fs.files.find())
 					count += 1
 					print count
-					sys.stdout.flush()
+					# sys.stdout.flush()
 			
 			# Getting to following pages
 			# Div containing bottom navigation table of links
@@ -145,4 +145,4 @@ for year in range(1975,2013):
 				search_url = None
 	
 print 'Final count =', count
-sys.stdout.flush()
+# sys.stdout.flush()
