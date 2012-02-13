@@ -3,7 +3,6 @@
 # Grab Google Scholar case decisions from search results
 # and dump files into GridFS
 
-import httplib
 import sys
 from BeautifulSoup import BeautifulSoup
 import re
@@ -11,8 +10,8 @@ import time
 from pymongo import Connection
 import gridfs
 import random
-import webbrowser
-import urllib as UL
+import urllib
+import httplib2
 # import urlparse as UP
 
 # Make a connection to Mongo.
@@ -29,13 +28,24 @@ except ConnectionFailure:
 db = db_conn['fashion_ip']
 fs = gridfs.GridFS(db)
 
-host = 'scholar.google.com'
+host = 'http://scholar.google.com'
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1) Gecko/20100101 Firefox/8.0.1'}
 
-conn = httplib.HTTPConnection(host)
+http = httplib2.Http()
 count = 0
 
-for year in range(2010,2013):
+init_url = host
+response, content = http.request(init_url, 'GET', headers=headers)
+print "Response:\n", response
+
+if response['status'] in ['302', '503']:
+	print "REDIRECT!!"
+	sys.exit(1)
+			
+headers['Cookie'] = response['set-cookie']
+print "\nNew Headers:\n", headers
+
+for year in range(2007,2013):
 	
 	print "\n** YEAR:", year
 	# sys.stdout.flush()
@@ -50,8 +60,8 @@ for year in range(2010,2013):
 	 'as_yhi': [str(year)],
 	 'q': ['"17 USC"']}
 	
-	query_str = UL.urlencode(query_dict, True)
-	search_url = '/scholar?' + query_str
+	query_str = urllib.urlencode(query_dict, True)
+	search_url = host + '/scholar?' + query_str
 	print search_url
 	# sys.stdout.flush()
 		
@@ -59,24 +69,19 @@ for year in range(2010,2013):
 		print '_new page, year', year
 		# sys.stdout.flush()
 		time.sleep(0.2 + 0.2*random.random())
-		conn.request("GET", search_url, None, headers)
 		
-		resp = conn.getresponse()
+		response, content = http.request(search_url, 'GET', headers=headers)
+
 		print "Response Status:", resp.status
 		# sys.stdout.flush()
 		
-		if resp.status == 302:
-			html = resp.read()
+		if response['status'] in ['302', '503']:
 			print "REDIRECT!!"
-			soup = BeautifulSoup(html)
-			redirect = soup.findAll('a')
-			webbrowser.open(redirect[0]['href'])
 			search_url = None
 			sys.exit(1)
 			
-		if resp.status == 200:
-			html = resp.read()
-			soup = BeautifulSoup(html)
+		if response['status'] == '200':
+			soup = BeautifulSoup(content)
 			
 			# Just to show where we are
 			tt = soup.find('td',{'align':'right'})
@@ -105,24 +110,14 @@ for year in range(2010,2013):
 				
 				# Downloading actual file
 				time.sleep(0.2 + 0.2*random.random())
-				conn.request("GET", case_base_url, None, headers)
-				resp = conn.getresponse()
+				response, case_html = http.request(host + case_base_url, 'GET', headers=headers)
 
-				if resp.status == 302:
-					html = resp.read()
+				if response['status'] in ['302', '503']:
 					print "REDIRECT!!"
-					# sys.stdout.flush()
-					soup = BeautifulSoup(html)
-					redirect = soup.findAll('a')
-					webbrowser.open(redirect[0]['href'])
 					search_url = None
 					sys.exit(1)
 		
-				if resp.status == 200:
-					case_html = resp.read()
-					# print case_html
-					# split off case number
-					
+				if response['status'] == '200':
 					# Write case html to GridFS
 					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case',year=year)
 					# print uid
@@ -138,7 +133,7 @@ for year in range(2010,2013):
 				nav_links = nav_div.findAll('a')
 				for link in nav_links:
 					if link.find('span',{'class':'SPRITE_nav_next'}) != None:
-						search_url = link['href']
+						search_url = host + link['href']
 					else:
 						search_url = None
 			else:
