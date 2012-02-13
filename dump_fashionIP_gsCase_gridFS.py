@@ -35,7 +35,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1)
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(2005,2013):
+for year in range(2007,2013):
 	
 	print "\n** YEAR:", year
 	# sys.stdout.flush()
@@ -58,7 +58,7 @@ for year in range(2005,2013):
 	while search_url != None:
 		print '_new page, year', year
 		# sys.stdout.flush()
-		time.sleep(0.2 + 1.0*random.random())
+		time.sleep(0.2 + 0.2*random.random())
 		conn.request("GET", search_url, None, headers)
 		
 		resp = conn.getresponse()
@@ -104,7 +104,7 @@ for year in range(2005,2013):
 					continue
 				
 				# Downloading actual file
-				time.sleep(0.2 + 1.0*random.random())
+				time.sleep(0.2 + 0.2*random.random())
 				conn.request("GET", case_base_url, None, headers)
 				resp = conn.getresponse()
 
