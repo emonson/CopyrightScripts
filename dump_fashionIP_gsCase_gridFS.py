@@ -12,8 +12,13 @@ from pymongo import Connection
 import gridfs
 import random
 import webbrowser
-import urllib as UL
+import urllib
 # import urlparse as UP
+
+# If need to update parameters, can do it from here by setting UPDATE_PARAMS=True
+UPDATE_PARAMS = False
+start_year = 1900
+gs_query_string = 'trademark OR "trade mark" "15 USC"'
 
 # Make a connection to Mongo.
 try:
@@ -29,13 +34,25 @@ except ConnectionFailure:
 db = db_conn['fashion_ip']
 fs = gridfs.GridFS(db)
 
+# Grab search year and string from central DB storage
+# There should (better) only be one in the DB
+if UPDATE_PARAMS:
+	# Set params to current year
+	db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':start_year, 'query_string':gs_query_string}})
+else:
+	params = db.params.find_one({'name':'gs_yearbyyear_search'})
+	start_year = params['start_year']
+	gs_query_string = params['query_string']
+
+sys.exit(1)
+
 host = 'scholar.google.com'
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1) Gecko/20100101 Firefox/8.0.1'}
 
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(2011,2013):
+for year in range(start_year,2013):
 	
 	print "\n** YEAR:", year
 	# sys.stdout.flush()
@@ -48,9 +65,9 @@ for year in range(2011,2013):
 	 'num': ['10'],
 	 'as_ylo': [str(year)],
 	 'as_yhi': [str(year)],
-	 'q': ['"17 USC"']}
+	 'q': [gs_query_string]}
 	
-	query_str = UL.urlencode(query_dict, True)
+	query_str = urllib.urlencode(query_dict, True)
 	search_url = '/scholar?' + query_str
 	print search_url
 	# sys.stdout.flush()
@@ -66,6 +83,9 @@ for year in range(2011,2013):
 		# sys.stdout.flush()
 		
 		if resp.status == 302:
+			# Set params to current year
+			db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':year}})
+			
 			html = resp.read()
 			print "REDIRECT!!"
 			soup = BeautifulSoup(html)
@@ -109,6 +129,9 @@ for year in range(2011,2013):
 				resp = conn.getresponse()
 
 				if resp.status == 302:
+					# Set params to current year
+					db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':year}})
+					
 					html = resp.read()
 					print "REDIRECT!!"
 					# sys.stdout.flush()
