@@ -44,8 +44,6 @@ else:
 	start_year = params['start_year']
 	gs_query_string = params['query_string']
 
-sys.exit(1)
-
 host = 'scholar.google.com'
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1) Gecko/20100101 Firefox/8.0.1'}
 
