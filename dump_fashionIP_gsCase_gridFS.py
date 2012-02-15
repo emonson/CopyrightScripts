@@ -19,14 +19,15 @@ import urllib
 UPDATE_PARAMS = False
 
 # start_year = 1992
-# cases_per_page = 10
-# gs_query_string = 'trademark OR "trade mark" "15 USC"'
-# gs_query_tag = 'trademark'
-
 start_year = 1900
-cases_per_page = 100
-gs_query_string = '"17 USC"'
-gs_query_tag = 'copyright'
+cases_per_page = 10
+gs_query_string = 'trademark OR "trade mark" "15 USC"'
+gs_query_tag = 'trademark'
+
+# start_year = 1900
+# cases_per_page = 100
+# gs_query_string = '"17 USC"'
+# gs_query_tag = 'copyright'
 
 # Make a connection to Mongo.
 try:
