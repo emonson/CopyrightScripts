@@ -9,7 +9,7 @@ from setuptools import setup
 
 APP = ['dump_fashionIP_gsCase_gridFS.py']
 DATA_FILES = []
-OPTIONS = {'argv_emulation': True}
+OPTIONS = {'argv_emulation': False}
 
 setup(
     app=APP,
