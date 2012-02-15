@@ -16,16 +16,19 @@ import urllib
 # import urlparse as UP
 
 # If need to update parameters, can do it from here by setting UPDATE_PARAMS=True
-UPDATE_PARAMS = False
+UPDATE_PARAMS = True
 
-# start_year = 1992
 start_year = 1900
-cases_per_page = 10
-gs_query_string = 'trademark OR "trade mark" "15 USC"'
+cases_per_page = 100
+gs_query_string = '"60 Stat. 427"'
 gs_query_tag = 'trademark'
 
-# start_year = 1900
-# cases_per_page = 100
+# gs_query_string = '"Trademark Act of 1946"'
+# gs_query_tag = 'trademark'
+# gs_query_string = '"Trade-Mark Cases, 100 US 82"'
+# gs_query_tag = 'trademark'
+# gs_query_string = 'trademark OR "trade mark" "15 USC"'
+# gs_query_tag = 'trademark'
 # gs_query_string = '"17 USC"'
 # gs_query_tag = 'copyright'
 
