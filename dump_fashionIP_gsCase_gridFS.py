@@ -17,8 +17,16 @@ import urllib
 
 # If need to update parameters, can do it from here by setting UPDATE_PARAMS=True
 UPDATE_PARAMS = False
+
+# start_year = 1992
+# cases_per_page = 10
+# gs_query_string = 'trademark OR "trade mark" "15 USC"'
+# gs_query_tag = 'trademark'
+
 start_year = 1900
-gs_query_string = 'trademark OR "trade mark" "15 USC"'
+cases_per_page = 100
+gs_query_string = '"17 USC"'
+gs_query_tag = 'copyright'
 
 # Make a connection to Mongo.
 try:
@@ -38,11 +46,13 @@ fs = gridfs.GridFS(db)
 # There should (better) only be one in the DB
 if UPDATE_PARAMS:
 	# Set params to current year
-	db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':start_year, 'query_string':gs_query_string}})
+	db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':start_year, 'query_string':gs_query_string, 'query_tag':gs_query_tag, 'cases_per_page':cases_per_page}})
 else:
 	params = db.params.find_one({'name':'gs_yearbyyear_search'})
 	start_year = params['start_year']
+	cases_per_page = params['cases_per_page']
 	gs_query_string = params['query_string']
+	gs_query_tag = params['query_tag']
 
 host = 'scholar.google.com'
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1) Gecko/20100101 Firefox/8.0.1'}
@@ -60,7 +70,7 @@ for year in range(start_year,2013):
 	 'as_vis': ['0'],
 	 'btnG': ['Search'],
 	 'hl': ['en'],
-	 'num': ['10'],
+	 'num': [str(cases_per_page)],
 	 'as_ylo': [str(year)],
 	 'as_yhi': [str(year)],
 	 'q': [gs_query_string]}
@@ -117,6 +127,9 @@ for year in range(start_year,2013):
 				# Check if really need to download this file or if it's already in GridFS
 				file_list_in_db = list(db.fs.files.find({'filename':case_file},{'_id':True}))
 				if len(file_list_in_db) > 0:
+					# Already have it in DB, but might need to update tags list
+					# Should only get one return, but doing update on multiple just in case...
+					db.fs.files.update({'filename':case_file}, {'$addToSet':{'tags':gs_query_tag}}, multi=True)
 					print "already have that one..."
 					# sys.stdout.flush()
 					continue
@@ -145,7 +158,7 @@ for year in range(start_year,2013):
 					# split off case number
 					
 					# Write case html to GridFS
-					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case',year=year)
+					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case', year=year, tags=[gs_query_tag])
 					# print uid
 					# print list(db.fs.files.find())
 					count += 1
