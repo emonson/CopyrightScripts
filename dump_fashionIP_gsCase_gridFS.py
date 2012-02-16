@@ -23,6 +23,8 @@ cases_per_page = 100
 gs_query_string = '"60 Stat. 427"'
 gs_query_tag = 'trademark'
 
+# gs_query_string = '"60 Stat. 427"'
+# gs_query_tag = 'trademark'
 # gs_query_string = '"Trademark Act of 1946"'
 # gs_query_tag = 'trademark'
 # gs_query_string = '"Trade-Mark Cases, 100 US 82"'
