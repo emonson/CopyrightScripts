@@ -162,7 +162,7 @@ for year in range(start_year,2013):
 					# split off case number
 					
 					# Write case html to GridFS
-					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case', year=year, tags=[gs_query_tag])
+					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case', year=year, tags=[gs_query_tag], processed=False)
 					# print uid
 					# print list(db.fs.files.find())
 					count += 1
