@@ -15,6 +15,11 @@ import webbrowser
 import urllib as UL
 # import urlparse as UP
 
+if len(sys.argv) < 2:
+	start_year = 2011
+else:
+	start_year = int(sys.argv[1])
+	
 # Make a connection to Mongo.
 try:
     # db_conn = Connection("localhost", 27017)
@@ -35,7 +40,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1)
 conn = httplib.HTTPConnection(host)
 count = 0
 
-for year in range(2011,2013):
+for year in range(start_year,2013):
 	
 	print "\n** YEAR:", year
 	# sys.stdout.flush()

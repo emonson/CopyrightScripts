@@ -15,6 +15,7 @@ buildapp(
     # argv_emulation=1, # drag&dropped filenames show up in sys.argv
     # iconfile='myapp.icns', # file containing your app's icons
     standalone=1, # make this app self contained.
+    # semi_standalone=1,
     # encodings.utf_8 is necessary for loading cell arrays of strings
     # includeModules=['encodings.ascii','encodings.utf_8'], # list of additional Modules to force in
     includeModules=[], # list of additional Modules to force in
