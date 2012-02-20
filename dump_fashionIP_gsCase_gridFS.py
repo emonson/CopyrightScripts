@@ -12,14 +12,28 @@ from pymongo import Connection
 import gridfs
 import random
 import webbrowser
-import urllib as UL
+import urllib
 # import urlparse as UP
 
-if len(sys.argv) < 2:
-	start_year = 2011
-else:
-	start_year = int(sys.argv[1])
-	
+# If need to update parameters, can do it from here by setting UPDATE_PARAMS=True
+UPDATE_PARAMS = True
+
+start_year = 1900
+cases_per_page = 100
+gs_query_string = '"60 Stat. 427"'
+gs_query_tag = 'trademark'
+
+# gs_query_string = '"60 Stat. 427"'
+# gs_query_tag = 'trademark'
+# gs_query_string = '"Trademark Act of 1946"'
+# gs_query_tag = 'trademark'
+# gs_query_string = '"Trade-Mark Cases, 100 US 82"'
+# gs_query_tag = 'trademark'
+# gs_query_string = 'trademark OR "trade mark" "15 USC"'
+# gs_query_tag = 'trademark'
+# gs_query_string = '"17 USC"'
+# gs_query_tag = 'copyright'
+
 # Make a connection to Mongo.
 try:
     # db_conn = Connection("localhost", 27017)
@@ -33,6 +47,18 @@ except ConnectionFailure:
 # db_conn.drop_database('fashion_ip')
 db = db_conn['fashion_ip']
 fs = gridfs.GridFS(db)
+
+# Grab search year and string from central DB storage
+# There should (better) only be one in the DB
+if UPDATE_PARAMS:
+	# Set params to current year
+	db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':start_year, 'query_string':gs_query_string, 'query_tag':gs_query_tag, 'cases_per_page':cases_per_page}})
+else:
+	params = db.params.find_one({'name':'gs_yearbyyear_search'})
+	start_year = params['start_year']
+	cases_per_page = params['cases_per_page']
+	gs_query_string = params['query_string']
+	gs_query_tag = params['query_tag']
 
 host = 'scholar.google.com'
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:8.0.1) Gecko/20100101 Firefox/8.0.1'}
@@ -50,12 +76,12 @@ for year in range(start_year,2013):
 	 'as_vis': ['0'],
 	 'btnG': ['Search'],
 	 'hl': ['en'],
-	 'num': ['10'],
+	 'num': [str(cases_per_page)],
 	 'as_ylo': [str(year)],
 	 'as_yhi': [str(year)],
-	 'q': ['"17 USC"']}
+	 'q': [gs_query_string]}
 	
-	query_str = UL.urlencode(query_dict, True)
+	query_str = urllib.urlencode(query_dict, True)
 	search_url = '/scholar?' + query_str
 	print search_url
 	# sys.stdout.flush()
@@ -71,6 +97,9 @@ for year in range(start_year,2013):
 		# sys.stdout.flush()
 		
 		if resp.status == 302:
+			# Set params to current year
+			db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':year}})
+			
 			html = resp.read()
 			print "REDIRECT!!"
 			soup = BeautifulSoup(html)
@@ -104,6 +133,9 @@ for year in range(start_year,2013):
 				# Check if really need to download this file or if it's already in GridFS
 				file_list_in_db = list(db.fs.files.find({'filename':case_file},{'_id':True}))
 				if len(file_list_in_db) > 0:
+					# Already have it in DB, but might need to update tags list
+					# Should only get one return, but doing update on multiple just in case...
+					db.fs.files.update({'filename':case_file}, {'$addToSet':{'tags':gs_query_tag}}, multi=True)
 					print "already have that one..."
 					# sys.stdout.flush()
 					continue
@@ -114,6 +146,9 @@ for year in range(start_year,2013):
 				resp = conn.getresponse()
 
 				if resp.status == 302:
+					# Set params to current year
+					db.params.update({'name':'gs_yearbyyear_search'},{'$set':{'start_year':year}})
+					
 					html = resp.read()
 					print "REDIRECT!!"
 					# sys.stdout.flush()
@@ -129,7 +164,7 @@ for year in range(start_year,2013):
 					# split off case number
 					
 					# Write case html to GridFS
-					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case',year=year)
+					uid = fs.put(case_html, filename=case_file, url=conn.host + case_base_url, media_type='google_scholar_case', year=year, tags=[gs_query_tag], processed=False)
 					# print uid
 					# print list(db.fs.files.find())
 					count += 1
