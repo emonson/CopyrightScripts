@@ -130,13 +130,6 @@ if ($query)
     	color: DarkGray;
     }
     
-    p.snippet {
-    	margin: 0.5em 0em;
-    	font-family: monospace;
-    	position: relative;
-    	white-space: nowrap;
-    }
-    
     /* don't need monospace font if javascript enabled */
     p.snippetJS {
     	margin: 0.5em 0em;
@@ -237,20 +230,12 @@ if ($results)
 ?>
 <h3>
 <a href="http://<?php echo $doc->url; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a>
-<!-- <a href="http://<?php echo $doc->url.'?q='.$query.'&hl=en'; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a> -->
 </h3>
 <?php
     foreach ($results->highlighting->$doc_id->content as $snippet)
     {
-    	$new_snip = stripslashes(trim($snippet));
-    	$new_snip = str_replace("\n", " ", $new_snip);
-    	// $new_spl = explode("<span", $new_snip);
-    	// $hi_offset = strlen($new_spl[0]);
-    	$hi_offset = stripos($new_snip, "<span");
-    	$left_pos = 40.7853 - 0.615635*$hi_offset
-    	
 ?>
-<p class="snippet" style="left: <?php echo "$left_pos"; ?>em" ><?php echo $new_snip; ?></p>
+<p class="snippetJS" style="left: 0px" ><?php echo $snippet; ?></p>
 <?php
     }
   }
@@ -335,27 +320,32 @@ vis.append("path")
 // http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
 var test = document.getElementById("testwidth");
 
-var ps = d3.selectAll("p.snippet"),
-    pp = ps[0],
-    pdata = []
-    pre_str = '';
-    
-// If JS enabled, don't need monospace font, so swap all classes here
-ps.attr("class", "snippetJS");
-
-for (var i = 0; i < pp.length; i++) {
-	pre_str = pp[i].innerHTML.split("<span")[0];
-	test.innerHTML = '<p class="snippetJS">' + pre_str + '</p>';
-	pdata.push(500 - test.clientWidth);
+var measure_pre = function(pp) {
+	test.innerHTML = '<p class="snippetJS">' + pp.innerHTML.split("<span")[0] + '</p>';
+	return 500 - test.clientWidth;
 }
 
-ps.data(pdata).transition()
-	.duration(500)
-	.delay(function(d,i) { return 500 + i * 10; })
-	.style("left", function(d) { return d + "px"; });
+var ps = d3.selectAll("p.snippetJS")
+				.data(function() {return this.map(measure_pre);})
+				.style("left", function(d) { return d + "px"; })
+				.on("click", wrap_toggle);
 
-// ps.data(pdata)
-// 	.style("left", function(d) { return d + "px"; });
+var tmp = null;
+
+function wrap_toggle(d, i) {
+	tmp = this;
+	if (this.getAttribute('style').indexOf('left: 0px') >= 0) {
+  d3.select(this).transition()
+  		.duration(200)
+      .style("white-space", "nowrap")
+      .style("left", function(d) { return d + "px"; });
+	} else {
+  d3.select(this).transition()
+  		.duration(200)
+      .style("white-space", "normal")
+      .style("left", "0px");
+	}
+}
 
 	</script>
   </body>
