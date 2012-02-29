@@ -3,8 +3,9 @@
 // make sure browsers see this page as utf-8 encoded HTML
 header('Content-Type: text/html; charset=utf-8');
 
-$limit = 20000;
+$limit = 200;
 $query = isset($_REQUEST['q']) ? $_REQUEST['q'] : false;
+$start = isset($_REQUEST['start']) ? $_REQUEST['start'] : 0;
 $additionalParameters = array(
   'fl' => '_id,url,year,name,score',
   'sort' => 'year asc',
@@ -68,7 +69,7 @@ if ($query)
   // problems or a query parsing error)
   try
   {
-    $results = $solr->search($query, 0, $limit, $additionalParameters);
+    $results = $solr->search($query, $start, $limit, $additionalParameters);
   }
   catch (Exception $e)
   {
@@ -130,10 +131,9 @@ if ($query)
     	color: DarkGray;
     }
     
-    /* don't need monospace font if javascript enabled */
-    p.snippetJS {
+    p.snippet {
     	margin: 0.5em 0em;
-    	font-size: 90%;
+    	font-family: monospace;
     	position: relative;
     	white-space: nowrap;
     }
@@ -195,14 +195,16 @@ if ($query)
     </form>
     <div id="testwidth"></div>
     <div id="yearbarchart" ></div>
+    
 <?php
 
 // display results
 if ($results)
 {
   $total = (int) $results->response->numFound;
-  $start = min(1, $total);
-  $end = min($limit, $total);
+  $start = (int) $results->response->start;
+  $end = min($start+$limit, $total);
+  $q_str = strval($results->responseHeader->params->q);
   $current_year = 0;
   
   // Convert data format for use in d3 chart
@@ -212,37 +214,20 @@ if ($results)
   	$year_facets[] = array('x'=>intval($yr), 'y'=>$yr_count );
   }
 ?>
-    <h3 id="resultsFound">Results <?php echo $start; ?> - <?php echo $end;?> of <?php echo $total; ?>:</h3>
-<?php
-  // iterate result documents
-  foreach ($results->response->docs as $doc)
-  {
-		$doc_id = $doc->_id;
-		if ($doc->year !== $current_year)
-		{
-			$current_year = $doc->year;
-?>
-
-<h2><?php echo $doc->year; ?></h2>
-
-<?php
-		}
-?>
-<h3>
-<a href="http://<?php echo $doc->url; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a>
-</h3>
-<?php
-    foreach ($results->highlighting->$doc_id->content as $snippet)
-    {
-?>
-<p class="snippetJS" style="left: 0px" ><?php echo $snippet; ?></p>
-<?php
-    }
-  }
-}
-?>
 	<script type="text/javascript">
 	
+// If javascript enabled, then take monospaced out of line style
+// There should only be one style sheet for now
+// var ss = d3.selectAll('style').property('sheet').cssRules; 	// alternate access method...
+var ss = document.styleSheets[0].cssRules;
+for (var i=0; i < ss.length; i++) {
+	if (ss.item(i).selectorText == "p.snippet") {
+		ss.item(i).style.removeProperty("font-family");
+		ss.item(i).style.setProperty("font-size", "90%")
+	}
+}
+	
+// Chart of counts per year	
 var data = <?php echo json_encode($year_facets); ?>;
 	
 var w = 750,
@@ -313,6 +298,59 @@ vis.append("path")
     .attr("d", d3.svg.line()
     .x(function(d) { return x(d.x); })
     .y(function(d) { return y(d.y); }));
+    
+    </script>
+
+    <h3 id="resultsFound">Results <?php echo $start; ?> - <?php echo $end;?> of <?php echo $total; ?> cases:</h3>
+<?php
+
+	// Page navigation links
+	if ($start > 0)
+	{
+		$new_start = (($start-$limit) > 0) ? ($start-$limit) : 0;
+		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >prev</a>&nbsp;';
+	}
+	if ($end < $total)
+	{
+		$new_start = (($start+$limit) >= $total) ? $total : ($start+$limit);
+		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >next</a>&nbsp;';
+	}
+
+	// iterate result documents
+  foreach ($results->response->docs as $doc)
+  {
+		$doc_id = $doc->_id;
+		if ($doc->year !== $current_year)
+		{
+			$current_year = $doc->year;
+?>
+
+<h2><?php echo $doc->year; ?></h2>
+
+<?php
+		}
+?>
+<h3>
+<a href="http://<?php echo $doc->url; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a>
+</h3>
+<?php
+    foreach ($results->highlighting->$doc_id->content as $snippet)
+    {
+    	$new_snip = stripslashes(trim($snippet));
+    	$new_snip = str_replace("\n", " ", $new_snip);
+    	// $new_spl = explode("<span", $new_snip);
+    	// $hi_offset = strlen($new_spl[0]);
+    	$hi_offset = stripos($new_snip, "<span");
+    	$left_pos = 40.7853 - 0.615635*$hi_offset
+    	
+?>
+<p class="snippet" style="left: <?php echo "$left_pos"; ?>em" ><?php echo $new_snip; ?></p>
+<?php
+    }
+  }
+}
+?>
+<script type="text/javascript">
 
 // Shift over all paragraphs using javascript instead so don't need monospaced font
 
@@ -321,27 +359,25 @@ vis.append("path")
 var test = document.getElementById("testwidth");
 
 var measure_pre = function(pp) {
-	test.innerHTML = '<p class="snippetJS">' + pp.innerHTML.split("<span")[0] + '</p>';
+	test.innerHTML = '<p class="snippet">' + pp.innerHTML.split("<span")[0] + '</p>';
 	return 500 - test.clientWidth;
 }
 
-var ps = d3.selectAll("p.snippetJS")
+var ps = d3.selectAll("p.snippet")
 				.data(function() {return this.map(measure_pre);})
 				.style("left", function(d) { return d + "px"; })
 				.on("click", wrap_toggle);
-
-var tmp = null;
 
 function wrap_toggle(d, i) {
 	tmp = this;
 	if (this.getAttribute('style').indexOf('left: 0px') >= 0) {
   d3.select(this).transition()
-  		.duration(200)
+  		.duration(400)
       .style("white-space", "nowrap")
       .style("left", function(d) { return d + "px"; });
 	} else {
   d3.select(this).transition()
-  		.duration(200)
+  		.duration(400)
       .style("white-space", "normal")
       .style("left", "0px");
 	}
