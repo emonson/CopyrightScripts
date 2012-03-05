@@ -1,3 +1,7 @@
+# Take in tab-delimited file output by Google Refine, and should
+# be able to use the header information to automatically update
+# the correct fields. Just set the key_field variable below.
+
 from pymongo import Connection
 from pymongo.objectid import ObjectId
 import sys
@@ -28,6 +32,7 @@ field_list = csv_reader.next()
 key_idx = field_list.index(key_field)
 field_id = field_list.pop(key_idx)
 
+# CSV Reader will make each "line" a list
 for ii, line in enumerate(csv_reader):
 	if ii%100 == 0:
 		print ii
