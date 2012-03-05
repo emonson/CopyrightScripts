@@ -81,7 +81,7 @@ if ($query)
   // print_r($results);
   // Can't quite figure out how to dig down to the JSON for docs...?
   // echo json_encode($results->response);
-  
+
   // This gets directly down to the by-year counts from facet
   // JSON dictionary (object) with year as a string key and count as an int value
   // echo json_encode($results->facet_counts->facet_fields->year);
@@ -95,95 +95,108 @@ if ($query)
     <title>PHP Solr Client Example</title>
     <script type="text/javascript" src="d3.v2.min.js"></script>
     <style type="text/css">
-    
+
     body {
-    	font-family: sans-serif;
+      font-family: sans-serif;
     }
-    
+
     label {
-    	font-size: 80%;
+      font-size: 80%;
     }
-    
+
     h2 {
-    	font-size: 120%;
-    	margin: 1.5em 0em 0em 0em;
-    	color: DarkGray;
+      font-size: 120%;
+      margin: 1.5em 0em 0em 0em;
+      color: DarkGray;
     }
-    
+
     h3 {
-    	font-size: 80%;
-    	margin: 1em 0em 0em 0em;
+      font-size: 80%;
+      margin: 1em 0em 0em 0em;
     }
-    
+
     a {
-    	text-decoration: none;
+      text-decoration: none;
     }
-    
+
     a:link {
-    	color: LightGray;
+      color: LightGray;
     }
-    
+
     a:visited {
-    	color: #DFD3D3;
+      color: #DFD3D3;
     }
-    
+
     a:hover {
-    	color: DarkGray;
+      color: DarkGray;
     }
-    
+
     p.snippet {
-    	margin: 0.5em 0em;
-    	font-family: monospace;
-    	position: relative;
-    	white-space: nowrap;
+      margin: 0.5em 0em;
+      font-family: monospace;
+      position: relative;
+      white-space: nowrap;
     }
-    
+
     span.highlight {
-    	background: #FFB;
+      background: #FFECC9;
     }
-    
+
     input#q {
-    	width: 250px;
+      width: 250px;
     }
-    
+
     div#yearbarchart {
       font: 10px sans-serif;
-		}
-		
-		h3#resultsFound {
-			margin: 2em 0em 0em 0em;
-			color: #555;
-		}
-		
-		.rule line {
-			stroke: #eee;
-			shape-rendering: crispEdges;
-		}
-		
-		.rule line.axis {
-			stroke: #000;
-		}
-		
-		.area {
-			fill: lightsteelblue;
-		}
-		
-		.line, circle.area {
-			fill: none;
-			stroke: steelblue;
-			stroke-width: 1.5px;
-		}
-		
-		circle.area {
-			fill: #fff;
-		}
-        
-		#testwidth {
-			position: absolute;
-			visibility: hidden;
-			height: auto;
-			width: auto;
-		}
+    }
+
+    h3#resultsFound {
+      margin: 2em 0em 0em 0em;
+      color: #555;
+    }
+
+    /* Kuler: Sweet reunion by kristi
+      394230 dark green
+      828130 med green
+      BFBA68 light green
+      FFECC9 tan
+      BF9797 mauve
+    */
+    .rule line {
+      stroke: #eee;
+      shape-rendering: crispEdges;
+    }
+
+    .rule line.axis {
+      stroke: #000;
+    }
+
+    .yearrange line {
+      stroke: #394230;
+      stroke-width: 2px;
+      shape-rendering: crispEdges;
+    }
+
+    .area {
+      fill: #BFBA68;
+    }
+
+    .line, circle.area {
+      fill: none;
+      stroke: #828130;
+      stroke-width: 1.5px;
+    }
+
+    circle.area {
+      fill: #fff;
+    }
+
+    #testwidth {
+      position: absolute;
+      visibility: hidden;
+      height: auto;
+      width: auto;
+    }
 
     </style>
   </head>
@@ -195,7 +208,7 @@ if ($query)
     </form>
     <div id="testwidth"></div>
     <div id="yearbarchart" ></div>
-    
+
 <?php
 
 // display results
@@ -205,31 +218,32 @@ if ($results)
   $start = (int) $results->response->start;
   $end = min($start+$limit, $total);
   $q_str = strval($results->responseHeader->params->q);
+  $start_year = 0;
   $current_year = 0;
-  
+
   // Convert data format for use in d3 chart
   $year_facets = array();
   foreach ($results->facet_counts->facet_fields->year as $yr=>$yr_count)
   {
-  	$year_facets[] = array('x'=>intval($yr), 'y'=>$yr_count );
+    $year_facets[] = array('x'=>intval($yr), 'y'=>$yr_count );
   }
 ?>
-	<script type="text/javascript">
-	
+  <script type="text/javascript">
+
 // If javascript enabled, then take monospaced out of line style
 // There should only be one style sheet for now
-// var ss = d3.selectAll('style').property('sheet').cssRules; 	// alternate access method...
+// var ss = d3.selectAll('style').property('sheet').cssRules;   // alternate access method...
 var ss = document.styleSheets[0].cssRules;
 for (var i=0; i < ss.length; i++) {
-	if (ss.item(i).selectorText == "p.snippet") {
-		ss.item(i).style.removeProperty("font-family");
-		ss.item(i).style.setProperty("font-size", "90%")
-	}
+  if (ss.item(i).selectorText == "p.snippet") {
+    ss.item(i).style.removeProperty("font-family");
+    ss.item(i).style.setProperty("font-size", "90%")
+  }
 }
-	
-// Chart of counts per year	
+
+// Chart of counts per year 
 var data = <?php echo json_encode($year_facets); ?>;
-	
+
 var w = 750,
     h = 100,
     p = 20,
@@ -298,37 +312,41 @@ vis.append("path")
     .attr("d", d3.svg.line()
     .x(function(d) { return x(d.x); })
     .y(function(d) { return y(d.y); }));
-    
+
     </script>
 
     <h3 id="resultsFound">Results <?php echo $start; ?> - <?php echo $end;?> of <?php echo $total; ?> cases:</h3>
 <?php
 
-	// Page navigation links
-	if ($start > 0)
-	{
-		$new_start = (($start-$limit) > 0) ? ($start-$limit) : 0;
-		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >prev</a>&nbsp;';
-	}
-	if ($end < $total)
-	{
-		$new_start = (($start+$limit) >= $total) ? $total : ($start+$limit);
-		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >next</a>&nbsp;';
-	}
+  // Page navigation links
+  if ($start > 0)
+  {
+    $new_start = (($start-$limit) > 0) ? ($start-$limit) : 0;
+    echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >prev</a>&nbsp;';
+  }
+  if ($end < $total)
+  {
+    $new_start = (($start+$limit) >= $total) ? $total : ($start+$limit);
+    echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >next</a>&nbsp;';
+  }
 
-	// iterate result documents
+  // Iterate result documents
   foreach ($results->response->docs as $doc)
   {
-		$doc_id = $doc->_id;
-		if ($doc->year !== $current_year)
-		{
-			$current_year = $doc->year;
+    if ($start_year == 0)
+    {
+      $start_year = $doc->year;
+    }
+    $doc_id = $doc->_id;
+    if ($doc->year !== $current_year)
+    {
+      $current_year = $doc->year;
 ?>
 
 <h2><?php echo $doc->year; ?></h2>
 
 <?php
-		}
+    }
 ?>
 <h3>
 <a href="http://<?php echo $doc->url; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a>
@@ -336,13 +354,13 @@ vis.append("path")
 <?php
     foreach ($results->highlighting->$doc_id->content as $snippet)
     {
-    	$new_snip = stripslashes(trim($snippet));
-    	$new_snip = str_replace("\n", " ", $new_snip);
-    	// $new_spl = explode("<span", $new_snip);
-    	// $hi_offset = strlen($new_spl[0]);
-    	$hi_offset = stripos($new_snip, "<span");
-    	$left_pos = 40.7853 - 0.615635*$hi_offset
-    	
+      $new_snip = stripslashes(trim($snippet));
+      $new_snip = str_replace("\n", " ", $new_snip);
+      // $new_spl = explode("<span", $new_snip);
+      // $hi_offset = strlen($new_spl[0]);
+      $hi_offset = stripos($new_snip, "<span");
+      $left_pos = 40.7853 - 0.615635*$hi_offset
+
 ?>
 <p class="snippet" style="left: <?php echo "$left_pos"; ?>em" ><?php echo $new_snip; ?></p>
 <?php
@@ -352,6 +370,22 @@ vis.append("path")
 ?>
 <script type="text/javascript">
 
+var year0 = <?php echo $start_year; ?>;
+    year1 = <?php echo $current_year; ?>;
+
+// Put indicator of year range on year histogram plot
+var yearband = vis.selectAll("g.r")
+    .data([0])
+    .enter().append("g")
+    .attr("class", "yearrange");
+
+yearband.append("line")
+    .attr("x1", x(year0))
+    .attr("x2", x(year1))
+    .attr("y1", y(0))
+    .attr("y2", y(0));
+
+
 // Shift over all paragraphs using javascript instead so don't need monospaced font
 
 // Method for text width calculation By CMPalmer
@@ -359,30 +393,30 @@ vis.append("path")
 var test = document.getElementById("testwidth");
 
 var measure_pre = function(pp) {
-	test.innerHTML = '<p class="snippet">' + pp.innerHTML.split("<span")[0] + '</p>';
-	return 500 - test.clientWidth;
+  test.innerHTML = '<p class="snippet">' + pp.innerHTML.split("<span")[0] + '</p>';
+  return 500 - test.clientWidth;
 }
 
 var ps = d3.selectAll("p.snippet")
-				.data(function() {return this.map(measure_pre);})
-				.style("left", function(d) { return d + "px"; })
-				.on("click", wrap_toggle);
+        .data(function() {return this.map(measure_pre);})
+        .style("left", function(d) { return d + "px"; })
+        .on("click", wrap_toggle);
 
 function wrap_toggle(d, i) {
-	tmp = this;
-	if (this.getAttribute('style').indexOf('left: 0px') >= 0) {
+  tmp = this;
+  if (this.getAttribute('style').indexOf('left: 0px') >= 0) {
   d3.select(this).transition()
-  		.duration(400)
+      .duration(400)
       .style("white-space", "nowrap")
       .style("left", function(d) { return d + "px"; });
-	} else {
+  } else {
   d3.select(this).transition()
-  		.duration(400)
+      .duration(400)
       .style("white-space", "normal")
       .style("left", "0px");
-	}
+  }
 }
 
-	</script>
+  </script>
   </body>
 </html>
