@@ -61,17 +61,21 @@ for ii in range(pages):
   tv = response.raw_response['termVectors']
   
   print '\tparsing vectors and updating MongoDB...'
+  # Less entries returned on last round
+  if len(tv)-2 < 4*inc:
+    inc = int((len(tv)-2)/4.0)
   for jj in range(inc):
 		idx = jj*4 + 3		# two for warnings and one for doc name
 		id = ObjectId(tv[idx][1])
-		print id
 		term_freq_list = tv[idx][3]
 		
-		term_freq_dict = {}
+		term_list = []
+		term_freqs = []
 		# unpack term frequencies into dictionary
 		for tfi in range(0, len(term_freq_list), 2):
 		  # TODO: Need to check for '.' in keys -- they are invalid in mongo...
 		  #   terms like "u." and "u.s.c." are coming through...
-			term_freq_dict[term_freq_list[tfi]] = term_freq_list[tfi+1][1]
+			term_list.append(term_freq_list[tfi])
+			term_freqs.append(term_freq_list[tfi+1][1])
 			
-		db.docs.update({'_id':id},{'$set':{'solr_term_freqs':term_freq_dict}}, upsert=False, multi=False)
+		db.docs.update({'_id':id},{'$set':{'solr_term_list':term_list,'solr_term_freqs':term_freqs}}, upsert=False, multi=False)
