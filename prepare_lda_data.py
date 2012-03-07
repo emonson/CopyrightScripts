@@ -47,7 +47,7 @@ documents = []
 
 # This search chooses which subset
 # TODO: Make a version that uses solr for full text search subset
-for doc in db.docs.find(query, {'solr_term_list':True,'solr_term_freqs':True}):
+for count,doc in enumerate(db.docs.find(query, {'solr_term_list':True,'solr_term_freqs':True})):
 	if count%100 == 0:
 		print count
 

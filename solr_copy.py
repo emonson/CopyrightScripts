@@ -22,7 +22,7 @@ total_docs = db.docs.find().count()
 count = 0
 documents = []
 
-for doc in db.docs.find({},{'_id':True,'year':True,'court':True,'url':True,'name':True,'content':True}):
+for doc in db.docs.find({},{'_id':True,'year':True,'court':True,'court_level':True,'url':True,'name':True,'content':True,'tags':True}):
 	if count%100 == 0:
 		print count
 		

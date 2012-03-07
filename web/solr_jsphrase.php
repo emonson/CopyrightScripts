@@ -3,14 +3,11 @@
 // make sure browsers see this page as utf-8 encoded HTML
 header('Content-Type: text/html; charset=utf-8');
 
-$casesperpage = 200;
+$limit = 200;
 $query = isset($_REQUEST['q']) ? $_REQUEST['q'] : false;
 $start = isset($_REQUEST['start']) ? $_REQUEST['start'] : 0;
 $additionalParameters = array(
-  'fl' => '_id,url,year,name,score,court_level,tags',
-  'fq' => array('{!tag=dt}court_level:[4 TO 5]',
-                ),
-  // court_level: 5 = US Supreme, 4 = US Courts of Appeals, 3 = US District, 2 = State, 0 = Misc
+  'fl' => '_id,url,year,name,score',
   'sort' => 'year asc',
   'facet' => 'true',
   'facet.sort' => 'index asc',
@@ -18,16 +15,14 @@ $additionalParameters = array(
   // 'facet.mincount' => '1',
   // notice I use an array for a muti-valued parameter
   'facet.field' => array(
-        '{!ex=dt}court_level',
         'year',
-        'tags'
     ),
   'hl' => 'on',
-  'hl.fl' => 'content',
-  'hl.fragsize' => '200',
+  'hl.fl' => 'trigram',
   'hl.useFastVectorHighlighter' => 'true',
   'hl.boundaryScanner' => 'breakIterator',
   'hl.bs.type' => 'SENTENCE',
+  'hl.fragsize' => '200',
   'hl.snippets' => '500'
 );
 
@@ -74,7 +69,7 @@ if ($query)
   // problems or a query parsing error)
   try
   {
-    $results = $solr->search($query, $start, $casesperpage, $additionalParameters);
+    $results = $solr->search($query, $start, $limit, $additionalParameters);
   }
   catch (Exception $e)
   {
@@ -136,23 +131,6 @@ if ($query)
     	color: DarkGray;
     }
     
-    a.pagenav {
-    	font-size: 60%;
-    }
-    
-    a.pagenav:link {
-    	color: Gray;
-    }
-    
-    a.pagenav:visited {
-    	color: #8F8080;
-    }
-    
-    a.pagenav:hover {
-    	color: Black;
-    }
-    
-    
     p.snippet {
     	margin: 0.5em 0em;
     	font-family: monospace;
@@ -194,7 +172,7 @@ if ($query)
 		}
 		
 		.yearrange line {
-			stroke: #BF9797;
+			stroke: #394230;
 			stroke-width: 2px;
 			shape-rendering: crispEdges;
 		}
@@ -236,36 +214,19 @@ if ($query)
 // display results
 if ($results)
 {
+// print_r($results);
   $total = (int) $results->response->numFound;
-  $totalpages = ceil($total / $casesperpage);		// 1-based
   $start = (int) $results->response->start;
-  $currentpage = (int) ($start / $casesperpage) + 1;	// 1-based
-  $end = min($start+$casesperpage, $total);
-  $q_str = htmlspecialchars($results->responseHeader->params->q, ENT_QUOTES, 'utf-8');
+  $end = min($start+$limit, $total);
+  $q_str = strval($results->responseHeader->params->q);
   $start_year = 0;
   $current_year = 0;
   
-	if ($currentpage > $totalpages) {
-    $currentpage = $totalpages;
-	}
-	if ($currentpage < 1)
-	{
-    $currentpage = 1;
-	}
-
   // Convert data format for use in d3 chart
   $year_facets = array();
-  $court_facets = array();
   foreach ($results->facet_counts->facet_fields->year as $yr=>$yr_count)
   {
   	$year_facets[] = array('x'=>intval($yr), 'y'=>$yr_count );
-  }
-  foreach ($results->facet_counts->facet_fields->court_level as $crt=>$crt_count)
-  {
-  	if ($crt > 0)
-  	{
-  	  $court_facets[] = array('x'=>intval($crt), 'y'=>$crt_count );
-  	}
   }
 ?>
 	<script type="text/javascript">
@@ -283,21 +244,16 @@ for (var i=0; i < ss.length; i++) {
 	
 // Chart of counts per year	
 var data = <?php echo json_encode($year_facets); ?>;
-var court_data = <?php echo json_encode($court_facets); ?>;
 	
 var w = 750,
-    cw = 100,
     h = 100,
     p = 20,
     xmin = d3.min(data, function(d) { return d.x; }),
     xmax = d3.max(data, function(d) { return d.x; }),
     ymin = d3.min(data, function(d) { return d.y; }),
     ymax = d3.max(data, function(d) { return d.y; }),
-    cmax = d3.max(court_data, function(d) { return d.y; }),
     x = d3.scale.linear().domain([xmin, xmax]).range([0, w]),
-    y = d3.scale.linear().domain([ymin, ymax]).range([h, 0]),
-    c = d3.scale.linear().domain([0, cmax]).range([0, x(1910)]),
-    l = d3.scale.linear().domain([2, 5]).range([h, 0]);
+    y = d3.scale.linear().domain([ymin, ymax]).range([h, 0]);
 
 var vis = d3.select("div#yearbarchart")
   .append("svg")
@@ -305,13 +261,7 @@ var vis = d3.select("div#yearbarchart")
     .attr("width", w + p * 2)
     .attr("height", h + p * 2)
   .append("g")
-    .attr("transform", "translate(" + p + "," + p + ")")
-    .attr("class","main");
-    
-var court_vis = vis.selectAll("g.c")
-    .data([court_data])
-    .enter().append("g")
-    .attr("class","courtbars");
+    .attr("transform", "translate(" + p + "," + p + ")");
 
 var xrules = vis.selectAll("g.x")
     .data(x.ticks(10))
@@ -364,60 +314,22 @@ vis.append("path")
     .x(function(d) { return x(d.x); })
     .y(function(d) { return y(d.y); }));
     
-court_vis.append("path")
-    .attr("class", "line")
-    .attr("d", d3.svg.line()
-    .x(function(d) { return c(d.y); })
-    .y(function(d) { return l(d.x); }));
-
     </script>
 
+    <h3 id="resultsFound">Results <?php echo $start; ?> - <?php echo $end;?> of <?php echo $total; ?> cases:</h3>
 <?php
 
-  // Page navigation links
-
-  echo '<h3 id="resultsFound">Results: '.$start.' - '.$end.' of '.$total.' cases:</h3>';
-
-  // Following http://www.phpfreaks.com/tutorial/basic-pagination
-  
-  if ($currentpage > 1)
-  {
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start=0" ><<</a>&nbsp;';
-    $new_start = ($currentpage - 2) * $casesperpage;
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" ><</a>&nbsp;';
-  }
-  
-  // range of num links to show
-	$navrange = 3;
-	
-	// loop to show links to range of pages around current page
-	for ($x = ($currentpage - $navrange); $x < (($currentpage + $navrange)  + 1); $x++)
+	// Page navigation links
+	if ($start > 0)
 	{
-		 if (($x > 0) && ($x <= $totalpages))
-		 {
-				if ($x == $currentpage)
-				{
-					 echo '<a class="pagenav">['.$x.']</a>&nbsp;';
-				} 
-				else
-				{
-					 $new_start = ($x - 1) * $casesperpage;
-					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'">'.strval($x).'</a>&nbsp;';
-				}
-		 } 
+		$new_start = (($start-$limit) > 0) ? ($start-$limit) : 0;
+		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >prev</a>&nbsp;';
 	}
-  
-  // if not on last page, show forward and last page links        
-	if ($currentpage != $totalpages)
+	if ($end < $total)
 	{
-		$nextpage = $currentpage + 1;
-		$new_start = ($nextpage - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >></a>&nbsp;';
-		$new_start = ($totalpages - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >>></a>';
+		$new_start = (($start+$limit) >= $total) ? $total : ($start+$limit);
+		echo '<a href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >next</a>&nbsp;';
 	}
-	
-
 
 	// Iterate result documents
   foreach ($results->response->docs as $doc)
@@ -430,33 +342,18 @@ court_vis.append("path")
 		if ($doc->year !== $current_year)
 		{
 			$current_year = $doc->year;
-			echo '<h2>'.$doc->year.'</h2>';
+?>
+
+<h2><?php echo $doc->year; ?></h2>
+
+<?php
 		}
-		
-		// Going to just note the first character of any tags present for now...
-		$tag_str = "";
-		if (is_string($doc->tags))
-		{
-		  $tag_str = substr($doc->tags, 0, 1);
-		}
-		if (is_array($doc->tags))
-		{
-			foreach ($doc->tags as $tmptag)
-			{
-			  if (is_string($tmptag))
-			  {
-			    $tag_str .= substr($tmptag, 0, 1);
-			  }
-			}
-		}
-		
-		// Title
-    echo '<h3>';
-    echo '<a href="http://'.$doc->url.'">('.$doc->court_level.' '.$tag_str.') '.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'</a>';
-    echo '</h3>';
-    
-    // Snippets
-    foreach ($results->highlighting->$doc_id->content as $snippet)
+?>
+<h3>
+<a href="http://<?php echo $doc->url; ?>"><?php echo htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8'); ?></a>
+</h3>
+<?php
+    foreach ($results->highlighting->$doc_id->trigram as $snippet)
     {
     	$new_snip = stripslashes(trim($snippet));
     	$new_snip = str_replace("\n", " ", $new_snip);
@@ -478,16 +375,16 @@ var year0 = <?php echo $start_year; ?>;
     year1 = <?php echo $current_year; ?>;
 		
 // Put indicator of year range on year histogram plot
-// Using insert to put this line behind axis elements
-var yearband = d3.select("g.main")
-		.insert("g","g.rule")
+var yearband = vis.selectAll("g.r")
+		.data([0])
+    .enter().append("g")
     .attr("class", "yearrange");
 
 yearband.append("line")
     .attr("x1", x(year0))
     .attr("x2", x(year1))
-    .attr("y1", h+1)
-    .attr("y2", h+1);
+    .attr("y1", y(0))
+    .attr("y2", y(0));
 
 
 // Shift over all paragraphs using javascript instead so don't need monospaced font
@@ -522,53 +419,5 @@ function wrap_toggle(d, i) {
 }
 
 	</script>
-	
-<?php
-
-  // Page navigation links
-  
-  echo '<h3 id="resultsFound">Results: '.$start.' - '.$end.' of '.$total.' cases:</h3>';
-
-  // Following http://www.phpfreaks.com/tutorial/basic-pagination
-  
-  if ($currentpage > 1)
-  {
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start=0" ><<</a>&nbsp;';
-    $new_start = ($currentpage - 2) * $casesperpage;
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" ><</a>&nbsp;';
-  }
-  
-  // range of num links to show
-	$navrange = 3;
-	
-	// loop to show links to range of pages around current page
-	for ($x = ($currentpage - $navrange); $x < (($currentpage + $navrange)  + 1); $x++)
-	{
-		 if (($x > 0) && ($x <= $totalpages))
-		 {
-				if ($x == $currentpage)
-				{
-					 echo '<a class="pagenav">['.$x.']</a>&nbsp;';
-				} 
-				else
-				{
-					 $new_start = ($x - 1) * $casesperpage;
-					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'">'.strval($x).'</a>&nbsp;';
-				}
-		 } 
-	}
-
-  // if not on last page, show forward and last page links        
-	if ($currentpage != $totalpages)
-	{
-		$nextpage = $currentpage + 1;
-		$new_start = ($nextpage - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >></a>&nbsp;';
-		$new_start = ($totalpages - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >>></a>';
-	}
-	  
-?>
-
   </body>
 </html>
