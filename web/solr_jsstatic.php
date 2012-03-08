@@ -5,11 +5,16 @@ header('Content-Type: text/html; charset=utf-8');
 
 $casesperpage = 200;
 $query = isset($_REQUEST['q']) ? $_REQUEST['q'] : false;
+$filter = isset($_REQUEST['fq']) ? $_REQUEST['fq'] : "";
 $start = isset($_REQUEST['start']) ? $_REQUEST['start'] : 0;
+$min_ct = isset($_REQUEST['min_ct']) ? $_REQUEST['min_ct'] : 2;
+if ($min_ct > 5) { $min_ct = 5; }
+if ($min_ct < 0) { $min_ct = 0; }
+
 $additionalParameters = array(
   'fl' => '_id,url,year,name,score,court_level,tags',
-  'fq' => array('{!tag=dt}court_level:[4 TO 5]',
-                ),
+  'fq' => array("{!tag=dt}court_level:[$min_ct TO 5]",
+                $filter ),
   // court_level: 5 = US Supreme, 4 = US Courts of Appeals, 3 = US District, 2 = State, 0 = Misc
   'sort' => 'year asc',
   'facet' => 'true',
@@ -109,6 +114,11 @@ if ($query)
     	font-size: 80%;
     }
     
+    ul {
+    	font-size: 70%;
+    	padding: 0px;
+    }
+    
     h2 {
     	font-size: 120%;
     	margin: 1.5em 0em 0em 0em;
@@ -152,7 +162,6 @@ if ($query)
     	color: Black;
     }
     
-    
     p.snippet {
     	margin: 0.5em 0em;
     	font-family: monospace;
@@ -166,6 +175,35 @@ if ($query)
     
     input#q {
     	width: 250px;
+    }
+    
+    input#fq {
+    	width: 150px;
+    }
+    
+    label[for="fq"] {
+    	margin: 0em 0em 0em 0.5em;
+    }
+    
+    input[type="submit"] {
+    	margin: 0em 0em 0em 0.5em;
+    }
+    
+    .facetlist li {
+    	display: inline;
+    	padding: 0.5em 1em;
+    }
+    
+    .facetlist li.facetvalid {
+    	background: #FFF4E0;
+    }
+    
+    .facetlist li a.facet {
+    	color: Black;
+    }
+    
+    .facetlist li a.facet:hover {
+    	color: #444;
     }
     
     div#yearbarchart {
@@ -226,10 +264,11 @@ if ($query)
     <form  accept-charset="utf-8" method="get">
       <label for="q">Search:</label>
       <input id="q" name="q" type="text" value="<?php echo htmlspecialchars($query, ENT_QUOTES, 'utf-8'); ?>"/>
+      <label for="fq">pre-filter:</label>
+      <input id="fq" name="fq" type="text" value="<?php echo htmlspecialchars($filter, ENT_QUOTES, 'utf-8'); ?>"/>
+      <input id="min_ct" name="min_ct" type="hidden" value="<?php echo $min_ct; ?>"/>
       <input type="submit"/>
     </form>
-    <div id="testwidth"></div>
-    <div id="yearbarchart" ></div>
     
 <?php
 
@@ -242,10 +281,13 @@ if ($results)
   $currentpage = (int) ($start / $casesperpage) + 1;	// 1-based
   $end = min($start+$casesperpage, $total);
   $q_str = htmlspecialchars($results->responseHeader->params->q, ENT_QUOTES, 'utf-8');
+  $fq_str = htmlspecialchars($results->responseHeader->params->fq[1], ENT_QUOTES, 'utf-8');
   $start_year = 0;
   $current_year = 0;
   
-	if ($currentpage > $totalpages) {
+  // Make sure can't inject bad $start value and get bad $currentpage
+	if ($currentpage > $totalpages) 
+	{
     $currentpage = $totalpages;
 	}
 	if ($currentpage < 1)
@@ -253,22 +295,59 @@ if ($results)
     $currentpage = 1;
 	}
 
-  // Convert data format for use in d3 chart
+  // Convert data format for use in d3 charts
   $year_facets = array();
-  $court_facets = array();
   foreach ($results->facet_counts->facet_fields->year as $yr=>$yr_count)
   {
   	$year_facets[] = array('x'=>intval($yr), 'y'=>$yr_count );
   }
+  
+  // Convert format
+  // and create facet links list
+  $court_facets = array();
+  echo '<ul class="facetlist">';
+  // echo '<li>Courts: </li>';
   foreach ($results->facet_counts->facet_fields->court_level as $crt=>$crt_count)
   {
   	if ($crt > 0)
   	{
   	  $court_facets[] = array('x'=>intval($crt), 'y'=>$crt_count );
+  	  if ($crt == 5) {
+  	  	$crt_name = 'SCOTUS';
+  	  } elseif ($crt == 4) {
+  	  	$crt_name = 'US Appeals';
+  	  } elseif ($crt == 3) {
+  	  	$crt_name = 'US Dist';
+  	  } elseif ($crt == 2) {
+  	  	$crt_name = 'State';
+  	  } else {
+  	  	$crt_name = 'none';
+  	  }
+  	  $liclass = $crt >= $min_ct ? ' class="facetvalid"' : '';
+  	  echo '<li'.$liclass.'><a class="facet" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$start.'&min_ct='.$crt.'">'.$crt_name.' ('.$crt_count.')</a></li>';
   	}
   }
+  echo '</ul>';
+
+  // Convert format
+  // and create facet links list
+  $tag_facets = array();
+  echo '<ul class="facetlist">';
+  // echo '<li>Tags: </li>';
+  foreach ($results->facet_counts->facet_fields->tags as $tag=>$tag_count)
+  {
+  	echo '<li><a class="facet" >'.$tag.' ('.$tag_count.')</a></li>';
+  }
+  echo '</ul>';
 ?>
-	<script type="text/javascript">
+
+<!-- This used for testing snippet paragraph widths (not visible) -->
+<div id="testwidth"></div>
+
+<!-- Cases count per year graph will go here -->
+<div id="yearbarchart" ></div>
+
+<script type="text/javascript">
 	
 // If javascript enabled, then take monospaced out of line style
 // There should only be one style sheet for now
@@ -295,9 +374,9 @@ var w = 750,
     ymax = d3.max(data, function(d) { return d.y; }),
     cmax = d3.max(court_data, function(d) { return d.y; }),
     x = d3.scale.linear().domain([xmin, xmax]).range([0, w]),
-    y = d3.scale.linear().domain([ymin, ymax]).range([h, 0]),
-    c = d3.scale.linear().domain([0, cmax]).range([0, x(1910)]),
-    l = d3.scale.linear().domain([2, 5]).range([h, 0]);
+    y = d3.scale.linear().domain([ymin, ymax]).range([h, 0]);
+//     c = d3.scale.linear().domain([0, cmax]).range([0, x(1910)]),
+//     l = d3.scale.linear().domain([2, 5]).range([h, 0]);
 
 var vis = d3.select("div#yearbarchart")
   .append("svg")
@@ -308,10 +387,10 @@ var vis = d3.select("div#yearbarchart")
     .attr("transform", "translate(" + p + "," + p + ")")
     .attr("class","main");
     
-var court_vis = vis.selectAll("g.c")
-    .data([court_data])
-    .enter().append("g")
-    .attr("class","courtbars");
+// var court_vis = vis.selectAll("g.c")
+//     .data([court_data])
+//     .enter().append("g")
+//     .attr("class","courtbars");
 
 var xrules = vis.selectAll("g.x")
     .data(x.ticks(10))
@@ -364,13 +443,13 @@ vis.append("path")
     .x(function(d) { return x(d.x); })
     .y(function(d) { return y(d.y); }));
     
-court_vis.append("path")
-    .attr("class", "line")
-    .attr("d", d3.svg.line()
-    .x(function(d) { return c(d.y); })
-    .y(function(d) { return l(d.x); }));
+// court_vis.append("path")
+//     .attr("class", "line")
+//     .attr("d", d3.svg.line()
+//     .x(function(d) { return c(d.y); })
+//     .y(function(d) { return l(d.x); }));
 
-    </script>
+</script>
 
 <?php
 
@@ -382,9 +461,9 @@ court_vis.append("path")
   
   if ($currentpage > 1)
   {
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start=0" ><<</a>&nbsp;';
+    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start=0&min_ct='.$min_ct.'" ><<</a>&nbsp;';
     $new_start = ($currentpage - 2) * $casesperpage;
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" ><</a>&nbsp;';
+    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" ><</a>&nbsp;';
   }
   
   // range of num links to show
@@ -402,7 +481,7 @@ court_vis.append("path")
 				else
 				{
 					 $new_start = ($x - 1) * $casesperpage;
-					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'">'.strval($x).'</a>&nbsp;';
+					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >'.strval($x).'</a>&nbsp;';
 				}
 		 } 
 	}
@@ -412,9 +491,9 @@ court_vis.append("path")
 	{
 		$nextpage = $currentpage + 1;
 		$new_start = ($nextpage - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >></a>&nbsp;';
+		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >></a>&nbsp;';
 		$new_start = ($totalpages - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >>></a>';
+		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >>></a>';
 	}
 	
 
@@ -452,26 +531,39 @@ court_vis.append("path")
 		
 		// Title
     echo '<h3>';
-    echo '<a href="http://'.$doc->url.'">('.$doc->court_level.' '.$tag_str.') '.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'</a>';
+		if ($doc->court_level == 5) {
+			$crt_name = 'SCOTUS';
+		} elseif ($doc->court_level == 4) {
+			$crt_name = 'US Appeals';
+		} elseif ($doc->court_level == 3) {
+			$crt_name = 'US Dist';
+		} elseif ($doc->court_level == 2) {
+			$crt_name = 'State';
+		} else {
+			$crt_name = 'none';
+		}
+    echo '<a href="http://'.$doc->url.'">('.$crt_name.' '.$tag_str.') '.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'</a>';
     echo '</h3>';
     
     // Snippets
-    foreach ($results->highlighting->$doc_id->content as $snippet)
+    // NOTE: Sometimes we get matches but no highlighting content returned...
+    if (array_key_exists('content', $results->highlighting->$doc_id))
     {
-    	$new_snip = stripslashes(trim($snippet));
-    	$new_snip = str_replace("\n", " ", $new_snip);
-    	// $new_spl = explode("<span", $new_snip);
-    	// $hi_offset = strlen($new_spl[0]);
-    	$hi_offset = stripos($new_snip, "<span");
-    	$left_pos = 40.7853 - 0.615635*$hi_offset
-    	
-?>
-<p class="snippet" style="left: <?php echo "$left_pos"; ?>em" ><?php echo $new_snip; ?></p>
-<?php
+			foreach ($results->highlighting->$doc_id->content as $snippet)
+			{
+				$new_snip = stripslashes(trim($snippet));
+				$new_snip = str_replace("\n", " ", $new_snip);
+				// $new_spl = explode("<span", $new_snip);
+				// $hi_offset = strlen($new_spl[0]);
+				$hi_offset = stripos($new_snip, "<span");
+				$left_pos = 40.7853 - 0.615635*$hi_offset;
+				
+				echo '<p class="snippet" style="left: '.$left_pos.'em" >'.$new_snip.'</p>';
+			}
     }
   }
-}
 ?>
+
 <script type="text/javascript">
 
 var year0 = <?php echo $start_year; ?>;
@@ -521,21 +613,21 @@ function wrap_toggle(d, i) {
 	}
 }
 
-	</script>
+</script>
 	
 <?php
 
   // Page navigation links
-  
+
   echo '<h3 id="resultsFound">Results: '.$start.' - '.$end.' of '.$total.' cases:</h3>';
 
   // Following http://www.phpfreaks.com/tutorial/basic-pagination
   
   if ($currentpage > 1)
   {
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start=0" ><<</a>&nbsp;';
+    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start=0&min_ct='.$min_ct.'" ><<</a>&nbsp;';
     $new_start = ($currentpage - 2) * $casesperpage;
-    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" ><</a>&nbsp;';
+    echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" ><</a>&nbsp;';
   }
   
   // range of num links to show
@@ -553,21 +645,22 @@ function wrap_toggle(d, i) {
 				else
 				{
 					 $new_start = ($x - 1) * $casesperpage;
-					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'">'.strval($x).'</a>&nbsp;';
+					 echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >'.strval($x).'</a>&nbsp;';
 				}
 		 } 
 	}
-
+  
   // if not on last page, show forward and last page links        
 	if ($currentpage != $totalpages)
 	{
 		$nextpage = $currentpage + 1;
 		$new_start = ($nextpage - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >></a>&nbsp;';
+		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >></a>&nbsp;';
 		$new_start = ($totalpages - 1) * $casesperpage;
-		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&start='.$new_start.'" >>></a>';
+		echo '<a class="pagenav" href="'.$_SERVER['PHP_SELF'].'?q='.$q_str.'&fq='.$fq_str.'&start='.$new_start.'&min_ct='.$min_ct.'" >>></a>';
 	}
 	  
+} // if ($results)
 ?>
 
   </body>
