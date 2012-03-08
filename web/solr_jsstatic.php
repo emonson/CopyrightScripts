@@ -356,7 +356,7 @@ var ss = document.styleSheets[0].cssRules;
 for (var i=0; i < ss.length; i++) {
 	if (ss.item(i).selectorText == "p.snippet") {
 		ss.item(i).style.removeProperty("font-family");
-		ss.item(i).style.setProperty("font-size", "90%")
+		ss.item(i).style.setProperty("font-size", "90%", "")
 	}
 }
 	
