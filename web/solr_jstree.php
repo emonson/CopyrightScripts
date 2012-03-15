@@ -103,7 +103,7 @@ if ($query)
 <html>
   <head>
     <title>PHP Solr Client Example</title>
-    <script type="text/javascript" src="d3.v2.min.js"></script>
+    <script type="text/javascript" src="d3.v2.js"></script>
     <style type="text/css">
     
     body {
@@ -257,6 +257,22 @@ if ($query)
 			height: auto;
 			width: auto;
 		}
+		
+		/* word tree */
+		.link {
+			fill: none;
+			stroke: #c69547;
+			stroke-width: 1px;
+		}
+		
+		g {
+			background-color: black;
+		}
+		
+		g text {
+			font-family: sans-serif;
+			}
+
 
     </style>
   </head>
@@ -345,7 +361,8 @@ if ($results)
 <div id="testwidth"></div>
 
 <!-- Cases count per year graph will go here -->
-<div id="yearbarchart" ></div>
+<div id="viz"></div>
+
 
 <script type="text/javascript">
 	
@@ -363,58 +380,11 @@ for (var i=0; i < ss.length; i++) {
 </script>
 
 <?php
-
-  // Page navigation links
-
-  echo '<h3 id="resultsFound">Results: '.$start.' - '.$end.' of '.$total.' cases:</h3>';
-
-	// Iterate result documents
+	// Iterate result documents to gather up snippet paragraphs for javascript analysis
+  $snippet_paras = array();
   foreach ($results->response->docs as $doc)
   {
-  	if ($start_year == 0)
-  	{
-  		$start_year = $doc->year;
-  	}
 		$doc_id = $doc->_id;
-		if ($doc->year !== $current_year)
-		{
-			$current_year = $doc->year;
-			echo '<h2>'.$doc->year.'</h2>';
-		}
-		
-		// Going to just note the first character of any tags present for now...
-		$tag_str = "";
-		if (is_string($doc->tags))
-		{
-		  $tag_str = substr($doc->tags, 0, 1);
-		}
-		if (is_array($doc->tags))
-		{
-			foreach ($doc->tags as $tmptag)
-			{
-			  if (is_string($tmptag))
-			  {
-			    $tag_str .= substr($tmptag, 0, 1);
-			  }
-			}
-		}
-		
-		// Title
-    echo '<h3>';
-		if ($doc->court_level == 5) {
-			$crt_name = 'SCOTUS';
-		} elseif ($doc->court_level == 4) {
-			$crt_name = 'US Appeals';
-		} elseif ($doc->court_level == 3) {
-			$crt_name = 'US Dist';
-		} elseif ($doc->court_level == 2) {
-			$crt_name = 'State';
-		} else {
-			$crt_name = 'none';
-		}
-    echo '<a href="http://'.$doc->url.'">('.$crt_name.' '.$tag_str.') '.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'</a>';
-    echo '</h3>';
-    
     // Snippets
     // NOTE: Sometimes we get matches but no highlighting content returned...
     if (array_key_exists('content', $results->highlighting->$doc_id))
@@ -423,12 +393,9 @@ for (var i=0; i < ss.length; i++) {
 			{
 				$new_snip = stripslashes(trim($snippet));
 				$new_snip = str_replace("\n", " ", $new_snip);
-				// $new_spl = explode("<span", $new_snip);
-				// $hi_offset = strlen($new_spl[0]);
-				$hi_offset = stripos($new_snip, "<span");
-				$left_pos = 40.7853 - 0.615635*$hi_offset;
 				
-				echo '<p class="snippet" style="left: '.$left_pos.'em" >'.$new_snip.'</p>';
+				// memory-wasteful, but flexible and generic...
+				$snippet_paras[] = array('para'=>$new_snip, 'year'=>$doc->year, 'url'=>$doc->url );
 			}
     }
   }
@@ -436,94 +403,152 @@ for (var i=0; i < ss.length; i++) {
 
 <script type="text/javascript">
 
-// Shift over all paragraphs using javascript instead so don't need monospaced font
-
-// Method for text width calculation By CMPalmer
-// http://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
-var test = document.getElementById("testwidth");
-
-var measure_pre = function(pp) {
-	test.innerHTML = '<p class="snippet">' + pp.innerHTML.split("<span")[0] + '</p>';
-	return 500 - test.clientWidth;
-}
-
-var ps = d3.selectAll("p.snippet")
-				.data(function() {return this.map(measure_pre);})
-				.style("left", function(d) { return d + "px"; })
-				.on("click", wrap_toggle);
-
-function wrap_toggle(d, i) {
-	tmp = this;
-	if (this.getAttribute('style').indexOf('left: 0px') >= 0) {
-  d3.select(this).transition()
-  		.duration(400)
-      .style("white-space", "nowrap")
-      .style("left", function(d) { return d + "px"; });
-	} else {
-  d3.select(this).transition()
-  		.duration(400)
-      .style("white-space", "normal")
-      .style("left", "0px");
-	}
-}
+var snippets = <?php echo json_encode($snippet_paras); ?>;
 
 // WORD TREE
 
-// basic object for tree node
-var treeNode = {
-	name: '',
-	count: 0,
-	years: [],
-	urls: [],
-	children: {}
-	};
-
 // Loop through paragraphs to build word tree(s)
 var wholeTree = {},
-    pp = ps[0],
     para_spans = '',
     term_idx = -1,
     para_text = '',
     para_sub = '',
     tok = '',
     para_tokens = []
-    jc = 0;
+    jc = 0,
+    parent_node = null,
+    children_node = null;
 
-wholeTree.name = '';
+wholeTree.name = 'root';
 wholeTree.children = {};
-    
-for (var i = 0; i < pp.length; i++) {
-	para_spans = pp[i].getElementsByTagName('span');
-	para_text = pp[i].textContent;
+wholeTree.child_names = [];
+
+for (var i = 0; i < snippets.length; i++) {
+	tmp = snippets[i].para;
+	para = document.createElement('p');
+	para.innerHTML = tmp;
+	para_spans = para.getElementsByTagName('span');
+	para_text = para.textContent;
 	// NOTE: This is only grabbing first instance of single term!!!!
 	para_sub = para_text.substring(para_text.indexOf(para_spans[0].textContent));
 	// tokenize paragraph text. Need to find another way that preserves punctuation...
 	para_tokens = para_sub.toLowerCase().split(/[^a-zA-Z0-9]/);
-	current_node = wholeTree.children;
+	parent_node = wholeTree;
+	children_node = wholeTree.children;
 	jc = 0;
 	for (var j = 0; j < para_tokens.length; j++) {
 	  tok = para_tokens[j];
 		if (tok !== "") {
-			if (!current_node.hasOwnProperty(tok)) {
-				current_node[tok] = {};
-				current_node[tok].name = tok;
-				current_node[tok].count = 0;
-				current_node[tok].years = [];
-				current_node[tok].children = {};
+			if (!children_node.hasOwnProperty(tok)) {
+				parent_node.child_names.push(tok);
+				children_node[tok] = {};
+				children_node[tok].name = tok;
+				children_node[tok].count = 0;
+				children_node[tok].years = [];
+				children_node[tok].children = {};
+				children_node[tok].child_names = [];
 			}
-			current_node = current_node[tok];
-			current_node.count += 1;
-			current_node = current_node.children;
+			parent_node = children_node[tok];
+			parent_node.count += 1;
+			children_node = parent_node.children;
 			jc++;
 			// Temporary depth limiter
 			// NOTE: Should have entries for long strings after certain depth...
 			//  and maybe also a terminating leaf character or flag...
-			if (jc > 4) {
+			if (jc > 12) {
 				break;
 			}
 		}
 	}
 }
+
+// Convert data over to tree format needed for vis
+function add_children(orig, dest) {
+	dest.name = orig.name;
+	var term;
+	for (var i = 0; i < orig.child_names.length; i++) {
+		if (i === 0) {
+			dest.children = [];
+		}
+		term = orig.child_names[i];
+		dest.children.push({'name':term, 'count':orig.children[term].count});
+		if (orig.children[term].child_names.length > 0) {
+			add_children(orig.children[term], dest.children[i]);
+		}
+	}
+}
+
+// Need a round of cleanup where single children lines are strung together into
+// concatenated strings
+function append_single_children(node) {
+  for (var n = 0; n < node.child_names.length; n++) {
+  	var far_enough = false;
+  	while (far_enough === false) {
+			var childname = node.child_names[n];
+			var child = node.children[childname];
+			if (child.child_names.length === 1) {
+				var grandchildname = child.child_names[0];
+				var newchildname = childname + ' ' + grandchildname;
+				// update current node children and child names
+				node.child_names[n] = newchildname;
+				node.children[newchildname] = child.children[grandchildname];
+				node.children[newchildname].name = newchildname;
+				delete node.children[child];
+			}
+			else {
+			  far_enough = true;
+			  append_single_children(child);
+			}
+    }
+  }
+}
+
+append_single_children(wholeTree);
+
+var treeData = {};
+treeData.count = 1;
+add_children(wholeTree, treeData);
+// console.log(JSON.stringify(treeData,null,'  '));
+
+// Vis based on:
+// http://javadude.wordpress.com/2011/10/27/d3-js-tree-most-simple-sample/
+// http://bl.ocks.org/1312406
+
+var vis = d3.select("#viz").append("svg:svg")
+    .attr("width", 1000)
+    .attr("height", 600)
+  .append("svg:g")
+    .attr("transform", "translate(40, 0)");
+
+var tree = d3.layout.tree()
+  .size([600,400]);
+
+var diagonal = d3.svg.diagonal()
+  .projection(function(d) { return [d.y, d.x]; });
+
+var nodes = tree.nodes(treeData);
+
+var max_count = d3.max(nodes, function(d) { return d.count; }),
+    font_scale = d3.scale.linear().domain([0, Math.sqrt(max_count)]).range([0, 40]);
+
+var link = vis.selectAll("pathlink")
+    .data(tree.links(nodes))
+  .enter().append("svg:path")
+    .attr("class", "link")
+    .attr("d", diagonal);
+
+var node = vis.selectAll("g.node")
+    .data(nodes)
+  .enter().append("svg:g")
+    .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+
+node.append("svg:text")
+    .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
+    .attr("text-anchor", "start" )
+    .attr("baseline-shift", "-25%")
+    .attr("fill", function(d) { return d.count < 2 ? "gray" : "black"; } )
+    .text(function(d) { return d.name; });
+
 
 
 </script>
