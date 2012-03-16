@@ -102,7 +102,7 @@ if ($query)
 ?>
 <html>
   <head>
-    <title>PHP Solr Client Example</title>
+    <title>Solr Word Tree</title>
     <script type="text/javascript" src="d3.v2.min.js"></script>
     <style type="text/css">
     
@@ -360,6 +360,9 @@ if ($results)
 <!-- This used for testing snippet paragraph widths (not visible) -->
 <div id="testwidth"></div>
 
+<!-- Invisible SVG for measuring text will go here -->
+<div id="inviz"></div>
+
 <!-- Cases count per year graph will go here -->
 <div id="viz"></div>
 
@@ -514,15 +517,16 @@ add_children(wholeTree, treeData);
 // http://javadude.wordpress.com/2011/10/27/d3-js-tree-most-simple-sample/
 // http://bl.ocks.org/1312406
 
-var vis = d3.select("#viz").append("svg:svg")
-    .attr("width", 1000)
-    .attr("height", 600)
+var vis = d3.select("#inviz").append("svg:svg")
+    .attr("width", 1)
+    .attr("height", 1)
   .append("svg:g")
     .attr("transform", "translate(40, 0)");
 
 var tree = d3.layout.tree()
   .size([600,400]);
 
+// Using custom diagonal calculator which adds in parentwidths
 var diagonal = d3.svg.diagonal_tw()
   .projection(function(d) { return [d.y, d.x]; });
 
@@ -531,16 +535,46 @@ var nodes = tree.nodes(treeData);
 var max_count = d3.max(nodes, function(d) { return d.count; }),
     font_scale = d3.scale.linear().domain([0, Math.sqrt(max_count)]).range([0, 40]);
 
-var link = vis.selectAll("pathlink")
-    .data(tree.links(nodes))
-  .enter().append("svg:path")
-    .attr("class", "link")
-    .attr("d", diagonal);
-
-var node = vis.selectAll("g.node")
+// This tree of words isn't displayed, but used to calculate text offsets
+var inode = vis.selectAll("g.node")
     .data(nodes)
   .enter().append("svg:g")
+  	.attr("display", "none")
     .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+
+inode.append("svg:text")
+    .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
+    .attr("text-anchor", "start" )
+    .attr("baseline-shift", "-25%")
+    .text(function(d) { return d.name; });
+
+// Real visible tree
+var vis = d3.select("#viz").append("svg:svg")
+    .attr("width", 1000)
+    .attr("height", 600)
+  .append("svg:g")
+    .attr("transform", "translate(40, 0)");
+
+// grab text bbox width and set as part of original nodes data
+inode.datum(function(d){
+    d.textwidth = this.lastChild.getBBox().width;
+    return d; });
+
+// add up parent widths
+inode.datum(function(d){
+    var p_widths = 0
+        p = d.parent;
+    for (var i = 0; i < d.depth; i++) {
+      p_widths += p.textwidth;
+      p = p.parent;
+    }
+    d.parentwidths = p_widths;
+    return d; });
+
+var node = vis.selectAll("g.node")
+    .data(nodes.slice(1))
+  .enter().append("svg:g")
+    .attr("transform", function(d) { return "translate(" + (d.y + d.parentwidths) + "," + d.x + ")"; })
 
 node.append("svg:text")
     .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
@@ -548,6 +582,12 @@ node.append("svg:text")
     .attr("baseline-shift", "-25%")
     .attr("fill", function(d) { return d.count < 2 ? "gray" : "black"; } )
     .text(function(d) { return d.name; });
+
+var link = vis.selectAll("pathlink")
+    .data(tree.links(nodes.slice(1)))
+  .enter().append("svg:path")
+    .attr("class", "link")
+    .attr("d", diagonal);
 
 
 
