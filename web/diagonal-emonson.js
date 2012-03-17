@@ -7,8 +7,8 @@ d3.svg.diagonal_tw = function() {
     var pS = source.call(this, d, i),
         pT = target.call(this, d, i),
         // This is the customization: Add in source + parent text widths to y
-        p0 = {x:pS.x, y:(pS.y + pS.parentwidths + pS.textwidth) },
-        p3 = {x:pT.x , y:(pT.y + pT.parentwidths) },
+        p0 = {x:pS.x, y:(pS.y + pS.parentheights + pS.height) },
+        p3 = {x:pT.x , y:(pT.y + pT.parentheights) },
         m = (p0.y + p3.y) / 2,
         p = [p0, {x: p0.x, y: m}, {x: p3.x, y: m}, p3];
     p = p.map(projection);

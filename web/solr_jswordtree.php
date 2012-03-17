@@ -556,25 +556,28 @@ var vis = d3.select("#viz").append("svg:svg")
     .attr("transform", "translate(40, 0)");
 
 // grab text bbox width and set as part of original nodes data
+// All layout algorithms assume top to bottom layout, so need to swap
+// width and height of text to pretend it's hanging down...
 inode.datum(function(d){
-    d.textwidth = this.lastChild.getBBox().width;
+    d.height = this.lastChild.getBBox().width;
+    d.width = this.lastChild.getBBox().height;
     return d; });
 
 // add up parent widths
 inode.datum(function(d){
-    var p_widths = 0
+    var p_heights = 0
         p = d.parent;
     for (var i = 0; i < d.depth; i++) {
-      p_widths += p.textwidth;
+      p_heights += p.height;
       p = p.parent;
     }
-    d.parentwidths = p_widths;
+    d.parentheights = p_heights;
     return d; });
 
 var node = vis.selectAll("g.node")
     .data(nodes.slice(1))
   .enter().append("svg:g")
-    .attr("transform", function(d) { return "translate(" + (d.y + d.parentwidths) + "," + d.x + ")"; })
+    .attr("transform", function(d) { return "translate(" + (d.y + d.parentheights) + "," + d.x + ")"; })
 
 node.append("svg:text")
     .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
