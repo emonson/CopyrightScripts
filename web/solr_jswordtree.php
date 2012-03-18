@@ -103,7 +103,7 @@ if ($query)
 <html>
   <head>
     <title>Solr Word Tree</title>
-    <script type="text/javascript" src="d3.v2.min.js"></script>
+    <script type="text/javascript" src="d3.v2.js"></script>
     <style type="text/css">
     
     body {
@@ -523,8 +523,9 @@ var vis = d3.select("#inviz").append("svg:svg")
   .append("svg:g")
     .attr("transform", "translate(40, 0)");
 
-var tree = d3.layout.tree()
-  .size([600,400]);
+// This has all of the real layout stripped away, but still
+// generates the hierarchy list
+var tree = d3.layout.tree_tw();
 
 // Using custom diagonal calculator which adds in parentwidths
 var diagonal = d3.svg.diagonal_tw()
@@ -548,13 +549,6 @@ inode.append("svg:text")
     .attr("baseline-shift", "-25%")
     .text(function(d) { return d.name; });
 
-// Real visible tree
-var vis = d3.select("#viz").append("svg:svg")
-    .attr("width", 1000)
-    .attr("height", 600)
-  .append("svg:g")
-    .attr("transform", "translate(40, 0)");
-
 // grab text bbox width and set as part of original nodes data
 // All layout algorithms assume top to bottom layout, so need to swap
 // width and height of text to pretend it's hanging down...
@@ -563,21 +557,53 @@ inode.datum(function(d){
     d.width = this.lastChild.getBBox().height;
     return d; });
 
-// add up parent widths
-inode.datum(function(d){
-    var p_heights = 0
-        p = d.parent;
-    for (var i = 0; i < d.depth; i++) {
-      p_heights += p.height;
-      p = p.parent;
-    }
-    d.parentheights = p_heights;
-    return d; });
+var leftmost = 0,
+        gap = 0,
+        edge = 50;
+
+function postorder(node) {
+	if (!node.parent) {
+		node.parentheights = 0;
+	}
+	if (!node.width) {
+		node.width = 0;
+	}
+	if (!node.height) {
+		node.height = 0;
+	}
+	if (node.children && (node.children.length > 0)) {
+		var childxsum = 0;
+		var child = null;
+		for (var j = 0; j < node.children.length; j++) {
+			child = node.children[j];
+			child.parentheights = node.parentheights + node.height;
+			postorder(child);
+			childxsum = childxsum + child.x;
+		}
+		node.x = childxsum / node.children.length;
+	}
+	else {
+		node.x = leftmost + gap;
+		leftmost = node.x + node.width;
+	}
+	node.y = node.depth*edge + node.parentheights;
+}
+
+// Compute the layout.
+postorder(nodes[0]);
+
+
+// Real visible tree
+var vis = d3.select("#viz").append("svg:svg")
+    .attr("width", 1000)
+    .attr("height", 1600)
+  .append("svg:g")
+    .attr("transform", "translate(40, 0)");
 
 var node = vis.selectAll("g.node")
     .data(nodes.slice(1))
   .enter().append("svg:g")
-    .attr("transform", function(d) { return "translate(" + (d.y + d.parentheights) + "," + d.x + ")"; })
+    .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
 
 node.append("svg:text")
     .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
