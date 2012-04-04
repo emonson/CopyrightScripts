@@ -3,7 +3,7 @@ import codecs
 import re
 import os
 
-out_dir = '/Users/emonson/Data/ArtMarkets/Katherine/mallet/Fed_Copyright'
+out_dir = '/Users/emonson/Data/ArtMarkets/Katherine/mallet/NonState_Copyright'
 
 # Make a connection to Mongo.
 try:
@@ -16,8 +16,7 @@ except ConnectionFailure:
 db = db_conn['fashion_ip']
 
 # Query for subset
-fed_re = re.compile(r'^United States Court of', re.IGNORECASE)
-query = {'tags':'copyright','$or':[{'court':'Supreme Court of United States.'},{'court':fed_re}]}
+query = {'tags':'copyright','court_level':{'$gte':3}}
 
 # This search chooses which subset
 for count,doc in enumerate(db.docs.find(query, {'content':True,'filename':True})):

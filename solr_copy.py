@@ -1,4 +1,5 @@
 from pymongo import Connection
+from pymongo.errors import ConnectionFailure
 # import solr
 from mysolr import Solr
 
@@ -22,12 +23,16 @@ total_docs = db.docs.find().count()
 count = 0
 documents = []
 
-for doc in db.docs.find({},{'_id':True,'year':True,'court':True,'court_level':True,'url':True,'name':True,'content':True,'tags':True}):
+for doc in db.docs.find({},{'_id':True,'year':True,'court':True,'court_level':True,'url':True,'name':True,'content':True,'tags':True,'subjects':True}):
 	if count%100 == 0:
 		print count
 		
 	# don't know how else to get solr to take IDs...
 	doc['_id'] = str(doc['_id'])
+	# include subject tag in list of strings if weigth greater than 0.01
+	if 'subjects' in doc:
+		sub_tmp = [k for k,v in doc['subjects'].items() if v >= 0.01]
+		doc['subjects'] = sub_tmp
 	count += 1
 	documents.append(doc)
 
