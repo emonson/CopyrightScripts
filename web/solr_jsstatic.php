@@ -12,7 +12,7 @@ if ($min_ct > 5) { $min_ct = 5; }
 if ($min_ct < 0) { $min_ct = 0; }
 
 $additionalParameters = array(
-  'fl' => '_id,url,year,name,score,court_level,tags',
+  'fl' => '_id,url,year,name,score,court_level,tags,subjects',
   'fq' => array("{!tag=dt}court_level:[$min_ct TO 5]",
                 $filter ),
   // court_level: 5 = US Supreme, 4 = US Courts of Appeals, 3 = US District, 2 = State, 0 = Misc
@@ -25,7 +25,8 @@ $additionalParameters = array(
   'facet.field' => array(
         '{!ex=dt}court_level',
         'year',
-        'tags'
+        'tags',
+        'subjects'
     ),
   'hl' => 'on',
   'hl.fl' => 'content',
@@ -103,7 +104,7 @@ if ($query)
 <html>
   <head>
     <title>PHP Solr Client Example</title>
-    <script type="text/javascript" src="d3.v2.min.js"></script>
+    <script type="text/javascript" src="d3_2.8.1/d3.v2.min.js"></script>
     <style type="text/css">
     
     body {
@@ -178,7 +179,7 @@ if ($query)
     }
     
     input#fq {
-    	width: 150px;
+    	width: 250px;
     }
     
     label[for="fq"] {
@@ -191,7 +192,7 @@ if ($query)
     
     .facetlist li {
     	display: inline;
-    	padding: 0.5em 1em;
+    	padding: 0.5em 0.5em;
     }
     
     .facetlist li.facetvalid {
@@ -335,6 +336,13 @@ if ($results)
   echo '<ul class="facetlist">';
   // echo '<li>Tags: </li>';
   foreach ($results->facet_counts->facet_fields->tags as $tag=>$tag_count)
+  {
+  	echo '<li><a class="facet" >'.$tag.' ('.$tag_count.')</a></li>';
+  }
+  echo '</ul>';
+  echo '<ul class="facetlist">';
+  // echo '<li>Tags: </li>';
+  foreach ($results->facet_counts->facet_fields->subjects as $tag=>$tag_count)
   {
   	echo '<li><a class="facet" >'.$tag.' ('.$tag_count.')</a></li>';
   }
@@ -529,6 +537,24 @@ vis.append("path")
 			}
 		}
 		
+		// Concatenate list of subjects
+		$subj_str = "";
+		if (is_string($doc->subjects))
+		{
+		  $subj_str = ' - ' . $doc->subjects;
+		}
+		if (is_array($doc->subjects))
+		{
+			$subj_str .= ' - ';
+			foreach ($doc->subjects as $tmpsub)
+			{
+			  if (is_string($tmpsub))
+			  {
+			    $subj_str .= $tmpsub . ' ';
+			  }
+			}
+		}		
+		
 		// Title
     echo '<h3>';
 		if ($doc->court_level == 5) {
@@ -542,7 +568,7 @@ vis.append("path")
 		} else {
 			$crt_name = 'none';
 		}
-    echo '<a href="http://'.$doc->url.'">('.$crt_name.' '.$tag_str.') '.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'</a>';
+    echo '<a href="http://'.$doc->url.'">'.htmlspecialchars(substr($doc->name,0,80), ENT_NOQUOTES, 'utf-8').'<br />('.$crt_name.' '.$tag_str.$subj_str.')</a>';
     echo '</h3>';
     
     // Snippets

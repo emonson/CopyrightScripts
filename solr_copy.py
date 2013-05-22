@@ -31,7 +31,7 @@ for doc in db.docs.find({},{'_id':True,'year':True,'court':True,'court_level':Tr
 	doc['_id'] = str(doc['_id'])
 	# include subject tag in list of strings if weigth greater than 0.01
 	if 'subjects' in doc:
-		sub_tmp = [k for k,v in doc['subjects'].items() if v >= 0.01]
+		sub_tmp = [k for k,v in doc['subjects'].items() if v >= 0.05]
 		doc['subjects'] = sub_tmp
 	count += 1
 	documents.append(doc)

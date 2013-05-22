@@ -25,7 +25,8 @@ $additionalParameters = array(
   'facet.field' => array(
         '{!ex=dt}court_level',
         'year',
-        'tags'
+        'tags',
+        'subjects'
     ),
   'hl' => 'on',
   'hl.fl' => 'content',
@@ -103,7 +104,12 @@ if ($query)
 <html>
   <head>
     <title>Solr Word Tree</title>
+<!-- 
     <script type="text/javascript" src="d3.v2.js"></script>
+ -->
+    <script type="text/javascript" src="d3_2.8.1/d3.v2.min.js"></script>
+    <script type="text/javascript" src="d3_emonson/tree-emonson.js"></script>
+    <script type="text/javascript" src="d3_emonson/diagonal-emonson.js"></script>
     <style type="text/css">
     
     body {
@@ -178,7 +184,7 @@ if ($query)
     }
     
     input#fq {
-    	width: 150px;
+    	width: 250px;
     }
     
     label[for="fq"] {
@@ -191,7 +197,7 @@ if ($query)
     
     .facetlist li {
     	display: inline;
-    	padding: 0.5em 1em;
+    	padding: 0.5em 0.5em;
     }
     
     .facetlist li.facetvalid {
@@ -351,6 +357,13 @@ if ($results)
   echo '<ul class="facetlist">';
   // echo '<li>Tags: </li>';
   foreach ($results->facet_counts->facet_fields->tags as $tag=>$tag_count)
+  {
+  	echo '<li><a class="facet" >'.$tag.' ('.$tag_count.')</a></li>';
+  }
+  echo '</ul>';
+  echo '<ul class="facetlist">';
+  // echo '<li>Tags: </li>';
+  foreach ($results->facet_counts->facet_fields->subjects as $tag=>$tag_count)
   {
   	echo '<li><a class="facet" >'.$tag.' ('.$tag_count.')</a></li>';
   }
@@ -525,16 +538,16 @@ var vis = d3.select("#inviz").append("svg:svg")
 
 // This has all of the real layout stripped away, but still
 // generates the hierarchy list
-var tree = d3.layout.tree_tw();
+var tree_xx = d3.layout.tree_tw();
 
 // Using custom diagonal calculator which adds in parentwidths
 var diagonal = d3.svg.diagonal_tw()
   .projection(function(d) { return [d.y, d.x]; });
 
-var nodes = tree.nodes(treeData);
-
+var nodes = tree_xx.nodes(treeData);
+console.log(nodes);
 var max_count = d3.max(nodes, function(d) { return d.count; }),
-    font_scale = d3.scale.linear().domain([0, Math.sqrt(max_count)]).range([0, 40]);
+    font_scale = d3.scale.linear().domain([0.9, Math.sqrt(max_count)]).range([8, 64]);
 
 // This tree of words isn't displayed, but used to calculate text offsets
 var inode = vis.selectAll("g.node")
@@ -545,8 +558,6 @@ var inode = vis.selectAll("g.node")
 
 inode.append("svg:text")
     .attr("font-size", function(d) { return font_scale(Math.sqrt(d.count)); })
-    .attr("text-anchor", "start" )
-    .attr("baseline-shift", "-25%")
     .text(function(d) { return d.name; });
 
 // grab text bbox width and set as part of original nodes data
@@ -558,10 +569,10 @@ inode.datum(function(d){
     return d; });
 
 var leftmost = 0,
-        gap = 0,
-        edge = 50;
+    leafgap = 1,
+    edgespace = 40;
 
-function postorder(node) {
+function leaf_space_layout(node) {
 	if (!node.parent) {
 		node.parentheights = 0;
 	}
@@ -577,28 +588,51 @@ function postorder(node) {
 		for (var j = 0; j < node.children.length; j++) {
 			child = node.children[j];
 			child.parentheights = node.parentheights + node.height;
-			postorder(child);
+			leaf_space_layout(child);
 			childxsum = childxsum + child.x;
 		}
 		node.x = childxsum / node.children.length;
 	}
 	else {
-		node.x = leftmost + gap;
+		node.x = leftmost + leafgap;
 		leftmost = node.x + node.width;
 	}
-	node.y = node.depth*edge + node.parentheights;
+	node.y = node.depth*edgespace + node.parentheights;
 }
 
 // Compute the layout.
-postorder(nodes[0]);
+leaf_space_layout(nodes[0]);
 
+function d3_layout_treeSearch(node, compare) {
+  var children = node.children;
+  if (children && (n = children.length)) {
+    var child,
+        n,
+        i = -1;
+    while (++i < n) {
+      if (compare(child = d3_layout_treeSearch(children[i], compare), node) > 0) {
+        node = child;
+      }
+    }
+  }
+  return node;
+}
+
+function d3_layout_treeDownmost(a, b) {
+  return (a.y + a.height) - (b.y + b.height);
+}
+
+// find extents of layout for size of svg viewport
+var deep = d3_layout_treeSearch(nodes[0], d3_layout_treeDownmost),
+		downmost = deep.y + deep.height,
+		vpad = 20;
 
 // Real visible tree
 var vis = d3.select("#viz").append("svg:svg")
-    .attr("width", 1000)
-    .attr("height", 1600)
+    .attr("width", downmost + vpad)
+    .attr("height", leftmost + vpad)
   .append("svg:g")
-    .attr("transform", "translate(40, 0)");
+    .attr("transform", "translate(0, " + vpad + ")");
 
 var node = vis.selectAll("g.node")
     .data(nodes.slice(1))
@@ -613,7 +647,7 @@ node.append("svg:text")
     .text(function(d) { return d.name; });
 
 var link = vis.selectAll("pathlink")
-    .data(tree.links(nodes.slice(1)))
+    .data(tree_xx.links(nodes.slice(1)))
   .enter().append("svg:path")
     .attr("class", "link")
     .attr("d", diagonal);
