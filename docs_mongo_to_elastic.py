@@ -27,7 +27,7 @@ if not es.indices.exists( index = es_index_name ):
 # pp.pprint( es.indices.get_settings( index = es_index_name ) )
 
 # Turn off bulk refresh time for uploads, so can do refresh at the end only
-# es.indices.put_settings(body={"index": {"refresh_interval": "-1"}}, index = es_index_name)
+es.indices.put_settings(body={"index": {"refresh_interval": "-1"}}, index = es_index_name)
 
 # Direct from MongoDB method
 ii = 0
@@ -43,12 +43,12 @@ for doc in db.docs.find({},{'solr_term_list':False, 'solr_term_freqs':False }):
     doc['file_ref'] = { 'collection':ref_coll, 'id':ref_id_str }
 
     # Index (or add) the document in Elasticsearch
-    res = es.index(index=es_index_name, doc_type='case', id=id_str, body=doc_dict)
+    res = es.index(index=es_index_name, doc_type='case', id=id_str, body=doc)
     
     ii += 1
 
 # Really update the index
-# es.indices.refresh(index = es_index_name)
+es.indices.refresh(index = es_index_name)
 
 # Turn back on the standard bulk refresh interval
-# es.indices.put_settings(body={"index": {"refresh_interval": "1s"}}, index = es_index_name)
+es.indices.put_settings(body={"index": {"refresh_interval": "1s"}}, index = es_index_name)
