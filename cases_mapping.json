@@ -1,0 +1,28 @@
+PUT /fashion_test/_mapping/case
+{
+"properties": {
+   "content": {
+      "type": "string",
+      "analyzer": "english"
+   },
+   "court": {
+      "type": "string",
+      "index": "not_analyzed"
+   },
+   "court_level": {
+      "type": "integer"
+   },
+   "tags": {
+      "type": "string",
+      "index": "not_analyzed"
+   },
+   "subject_tags": {
+      "type": "string",
+      "index": "not_analyzed"
+   },
+   "year": {
+      "type": "date",
+      "format": "year"
+   }
+}
+}

@@ -41,6 +41,11 @@ for doc in db.docs.find({},{'solr_term_list':False, 'solr_term_freqs':False }):
     ref_coll = doc['file_ref'].collection
     ref_id_str = str(doc['file_ref'].id)
     doc['file_ref'] = { 'collection':ref_coll, 'id':ref_id_str }
+    
+    # include subject tag in list of strings if weigth greater than 0.01
+    if 'subjects' in doc:
+        sub_tmp = [k for k,v in doc['subjects'].items() if v >= 0.05]
+        doc['subject_tags'] = sub_tmp
 
     # Index (or add) the document in Elasticsearch
     res = es.index(index=es_index_name, doc_type='case', id=id_str, body=doc)
