@@ -1,0 +1,52 @@
+<html>
+<head>
+<title>French Copyright History (English translations) LSA Query</title>
+    <style type="text/css">
+
+body {
+  margin: 0;
+  display: table;
+  height: 100%;
+  width: 100%;
+  font: 14px/134% Helvetica Neue, sans-serif;
+}
+
+#center {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+#fig {
+  position: relative;
+  margin: auto;
+  width: 600px;
+  height: 300px;
+}
+
+    </style>
+
+</head>
+
+<body>
+
+<div id="center"><div id="fig">
+<h2>French Copyright History (English translations) LSA Query</h2>
+
+<p>Type a series of query words or a phrase and hit "Submit", and a new page will
+appear which contains the similarity (a value between 0 and 1) of the phrase to the documents
+according to "Latent Semantic Analysis".
+This process treats the query as another document and then compares
+it to all the others.</p>
+
+<p>
+<form id="query_form"
+      action="/cgi-bin/lsa-query-page.py"
+      method="post">
+  <b>Query terms:</b> <input name="query" size="50"/>
+  <input type="submit" value="Submit" />
+</form>
+</p>
+
+</div></div>
+</body>
+</html>

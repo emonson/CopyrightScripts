@@ -1,0 +1,279 @@
+<html>
+<head>
+<title>Simple Ajax Example</title>
+    <link type="text/css" rel="stylesheet" href="ex.css?3.2"/>
+    <script type="text/javascript" src="protovis-r3.2.js"></script>
+    <style type="text/css">
+
+#fig {
+  width: 430px;
+  height: 225px;
+}
+
+    </style>
+</head>
+
+<body>
+<div id="center"><div id="fig">
+  <div id="result">Query terms retained: <b>books france</b></div>
+    <script type="text/javascript+protovis">
+
+var data = [
+  {
+    "y": 0.0, 
+    "x": 0
+  }, 
+  {
+    "y": 0.0, 
+    "x": 1
+  }, 
+  {
+    "y": 0.0, 
+    "x": 2
+  }, 
+  {
+    "y": 0.75504972879017374, 
+    "x": 3
+  }, 
+  {
+    "y": 0.0, 
+    "x": 4
+  }, 
+  {
+    "y": 0.049175110669989308, 
+    "x": 5
+  }, 
+  {
+    "y": 0.33628016146286299, 
+    "x": 6
+  }, 
+  {
+    "y": 0.0, 
+    "x": 7
+  }, 
+  {
+    "y": 0.0, 
+    "x": 8
+  }, 
+  {
+    "y": 0.0, 
+    "x": 9
+  }, 
+  {
+    "y": 0.0, 
+    "x": 10
+  }, 
+  {
+    "y": 0.60155583740570684, 
+    "x": 11
+  }, 
+  {
+    "y": 0.0, 
+    "x": 12
+  }, 
+  {
+    "y": 0.0, 
+    "x": 13
+  }, 
+  {
+    "y": 0.0, 
+    "x": 14
+  }, 
+  {
+    "y": 0.60737994468390932, 
+    "x": 15
+  }, 
+  {
+    "y": 0.87484938212877228, 
+    "x": 16
+  }, 
+  {
+    "y": 0.0, 
+    "x": 17
+  }, 
+  {
+    "y": 0.0, 
+    "x": 18
+  }, 
+  {
+    "y": 0.0, 
+    "x": 19
+  }, 
+  {
+    "y": 0.0, 
+    "x": 20
+  }, 
+  {
+    "y": 0.84026059408475196, 
+    "x": 21
+  }, 
+  {
+    "y": 0.0, 
+    "x": 22
+  }, 
+  {
+    "y": 0.90522929895578996, 
+    "x": 23
+  }, 
+  {
+    "y": 0.92083391868704045, 
+    "x": 24
+  }, 
+  {
+    "y": 0.097862783815208534, 
+    "x": 25
+  }, 
+  {
+    "y": 0.0, 
+    "x": 26
+  }, 
+  {
+    "y": 0.93331026514470261, 
+    "x": 27
+  }, 
+  {
+    "y": 0.82715227754420306, 
+    "x": 28
+  }, 
+  {
+    "y": 0.0, 
+    "x": 29
+  }, 
+  {
+    "y": 0.0, 
+    "x": 30
+  }, 
+  {
+    "y": 0.28628802576580664, 
+    "x": 31
+  }, 
+  {
+    "y": 0.066212820309126424, 
+    "x": 32
+  }, 
+  {
+    "y": 0.0, 
+    "x": 33
+  }, 
+  {
+    "y": 0.093425634328509741, 
+    "x": 34
+  }, 
+  {
+    "y": 0.0, 
+    "x": 35
+  }, 
+  {
+    "y": 0.0, 
+    "x": 36
+  }, 
+  {
+    "y": 0.0, 
+    "x": 37
+  }, 
+  {
+    "y": 0.83732203929390758, 
+    "x": 38
+  }, 
+  {
+    "y": 0.77275381284306388, 
+    "x": 39
+  }, 
+  {
+    "y": 0.64262859980423015, 
+    "x": 40
+  }, 
+  {
+    "y": 0.0, 
+    "x": 41
+  }, 
+  {
+    "y": 0.034696976453543214, 
+    "x": 42
+  }, 
+  {
+    "y": 0.0, 
+    "x": 43
+  }, 
+  {
+    "y": 0.0, 
+    "x": 44
+  }, 
+  {
+    "y": 0.0, 
+    "x": 45
+  }, 
+  {
+    "y": 0.12935311142885755, 
+    "x": 46
+  }, 
+  {
+    "y": 0.18864845531972868, 
+    "x": 47
+  }, 
+  {
+    "y": 0.97059713003997483, 
+    "x": 48
+  }, 
+  {
+    "y": 0.0, 
+    "x": 49
+  }, 
+  {
+    "y": 0.0, 
+    "x": 50
+  }, 
+  {
+    "y": 0.9183322835987453, 
+    "x": 51
+  }
+]
+/* Sizing and scales. */
+var w = 400,
+    h = 200,
+    x = pv.Scale.linear(data, function(d) d.x).range(0, w),
+    y = pv.Scale.linear(0, 1).range(0, h);
+
+/* The root panel. */
+var vis = new pv.Panel()
+    .width(w)
+    .height(h)
+    .bottom(20)
+    .left(20)
+    .right(10)
+    .top(5);
+
+/* Y-axis and ticks. */
+vis.add(pv.Rule)
+    .data(y.ticks(5))
+    .bottom(y)
+    .strokeStyle(function(d) d ? "#eee" : "#000")
+  .anchor("left").add(pv.Label)
+    .text(y.tickFormat);
+
+/* X-axis and ticks. */
+vis.add(pv.Rule)
+    .data(x.ticks())
+    .visible(function(d) d)
+    .left(x)
+    .bottom(-5)
+    .height(5)
+  .anchor("bottom").add(pv.Label)
+    .text(x.tickFormat);
+
+/* The area with top line. */
+vis.add(pv.Area)
+    .data(data)
+    .bottom(1)
+    .left(function(d) x(d.x))
+    .height(function(d) y(d.y))
+    .fillStyle("rgb(121,173,210)")
+  .anchor("top").add(pv.Line)
+    .lineWidth(3);
+
+vis.render();
+
+    </script>
+  </div></div>
+</body>
+</html>

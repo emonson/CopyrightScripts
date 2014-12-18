@@ -2,3 +2,4 @@ build/*
 dist/*
 dev/*
 *.tar.gz
+.DS_Store
