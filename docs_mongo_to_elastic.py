@@ -2,7 +2,9 @@ import sys
 from pymongo import Connection
 from datetime import datetime
 from elasticsearch import Elasticsearch
+from elasticsearch import helpers
 import pprint
+import time
 
 mongo_db_name = 'fashion_ip'
 es_index_name = 'fashion_test'
@@ -40,22 +42,27 @@ case_mapping = { "properties": {
 
 # Create the index
 if not es.indices.exists( index = es_index_name ):
-    es.indices.create( index = es_index_name )
+    es.indices.create( index = es_index_name, body={ "number_of_shards": 1 } )
     es.indices.put_mapping(index=es_index_name, doc_type=es_doc_type, body=case_mapping)
 
 
 # pp = pprint.PrettyPrinter(indent=2)
 # pp.pprint( es.indices.get_settings( index = es_index_name ) )
 
-# Turn off bulk refresh time for uploads, so can do refresh at the end only
-if not DRY_RUN:
-    es.indices.put_settings(body={"index": {"refresh_interval": "-1"}}, index = es_index_name)
-
 # Direct from MongoDB method
 ii = 0
+
+# Storing iterator of actions to feed to bulk api
+# NOTE: Potential memory problems since gatering them all in memory between feeding to ES!
+actions = []
+start_time = time.time()
+
 for doc in db.docs.find({},{'solr_term_list':False, 'solr_term_freqs':False }):
-    if ii % 100 == 0:
-        print ii
+    if ii % 1000 == 0:
+        # Actually feed docs to elasticsearch bulk api for indexing
+        res = helpers.bulk(es, actions)
+        print ii, res, time.time() - start_time
+        actions = []
     
     # Replace a couple pieces that ES can't serialize from the mongo object
     id_str = str(doc['_id'])
@@ -95,16 +102,13 @@ for doc in db.docs.find({},{'solr_term_list':False, 'solr_term_freqs':False }):
         # NOTE: If no date (only 16 of them), use the year, and put it in the middle
         doc['date_min'] = datetime.strptime(str(doc['year'])+'-06-01', '%Y-%m-%d')
     
-    # Index (or add) the document in Elasticsearch
-    if not DRY_RUN:
-        res = es.index(index=es_index_name, doc_type=es_doc_type, id=id_str, body=doc)
+    # Add doc to actions list
+    action = {'_index':es_index_name, '_type':es_doc_type, '_op_type':'create', 'doc':doc}
+    actions.append(action)
     
     ii += 1
 
-# Really update the index
-if not DRY_RUN:
-    es.indices.refresh(index = es_index_name)
+# Actually feed docs to elasticsearch bulk api for indexing
+res = helpers.bulk(es, actions)
+print res, time.time() - start_time
 
-# Turn back on the standard bulk refresh interval
-if not DRY_RUN:
-    es.indices.put_settings(body={"index": {"refresh_interval": "1s"}}, index = es_index_name)
