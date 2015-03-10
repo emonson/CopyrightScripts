@@ -103,8 +103,8 @@ for doc in db.docs.find({},{'solr_term_list':False, 'solr_term_freqs':False }):
         doc['date_min'] = datetime.strptime(str(doc['year'])+'-06-01', '%Y-%m-%d')
     
     # Add doc to actions list
-    action = {'_index':es_index_name, '_type':es_doc_type, '_op_type':'create', 'doc':doc}
-    actions.append(action)
+    doc.update({'_index':es_index_name, '_type':es_doc_type, '_op_type':'create' })
+    actions.append(doc)
     
     ii += 1
 
