@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html>
+<!-- adaptation of Elasticsearch ElasticUI demo for fashion_ip DB -->
+<!-- https://github.com/YousefED/ElasticUI -->
+<head>
+    <title>ElasticUI Demo</title>
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" />
+    <script src="http://code.angularjs.org/1.2.16/angular.js"></script>
+    <script src="http://rawgit.com/YousefED/ElasticUI/master/examples/demo/lib/elasticsearch.angular.js"></script>
+    <script src="http://rawgit.com/YousefED/ElasticUI/master/examples/demo/lib/elastic.js"></script>
+    <script src="http://rawgit.com/YousefED/ElasticUI/master/dist/elasticui.min.js"></script>
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            z-index: 1000;
+            display: block;
+            padding: 20px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+            border-right: 1px solid #eee;
+        }
+    </style>
+    <script>
+        angular
+            .module('tutorial', ['elasticui'])
+            .constant('euiHost', 'http://localhost:9200'); // ACTION: change to cluster address
+    </script>
+</head>
+<body ng-app="tutorial" eui-index="'fashion_test'"><!-- ACTION: change to index name -->
+
+    <div class="container-fluid">
+
+        <div class="row">
+        
+            <div class="col-xs-3 sidebar">
+                <h3>Content Search</h3>
+                <eui-searchbox field="'content'"></eui-searchbox> <!-- ACTION: change to field to search on -->
+                <h3>IP type</h3>
+                <eui-singleselect field="'tags'" size="5"></eui-singleselect> <!-- ACTION: change to field to use as facet -->
+                <h3>Subject tags</h3>
+                <eui-checklist field="'subject_tags'" size="10"></eui-checklist> <!-- ACTION: change to field to use as facet -->
+                <h3>Court</h3>
+                <eui-checklist field="'court'" size="10"></eui-checklist> <!-- ACTION: change to field to use as facet -->
+            </div>
+            
+            <div class="col-xs-9 col-xs-offset-3 main">
+                <h1>Results</h1>
+                <ul>
+                    <li ng-repeat="doc in indexVM.results.hits.hits">
+                        <strong>{{doc._source.year}}</strong> &middot; {{doc._source.name}} <!-- OPTIONAL: display more meaningful data instead of json -->
+                    </li>
+                </ul>
+                <eui-simple-paging></eui-simple-paging>
+            </div>
+            
+        </div>
+        
+    </div>
+</body>
+</html>
